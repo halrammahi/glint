@@ -997,11 +997,8 @@ async function boot(){
       if(cWorker){ const fresh=workers[cWorker.id]; if(fresh) cWorker=fresh; }
     });
 
-    rdb.ref('pickupRequests').on('value', snap=>{
-      const reqs=snap.val()||{};
-      if(cWorker) renderPickupList(reqs);
-      if(cCustomer) watchMyPickup(reqs);
-    });
+    // pickup listener يُفعَّل فقط عند دخول العامل عبر startPickupListener()
+    // الزبون يُراقَب عبر startCustNotifs()
 
     showLoad(false);
 
@@ -1474,7 +1471,7 @@ function toggleOnline(){
   $id('w-odot').className='odot '+(wOnline?'on':'');
   setText('w-olbl',wOnline?t('online'):t('offline'));
   toast(wOnline?t('go_online'):t('go_offline'));
-  rdb.ref('pickupRequests').once('value',s=>renderPickupList(s.val()||{}));
+  if(_puListenerActive) rdb.ref('pickupRequests').once('value',s=>renderPickupList(s.val()||{}));
 }
 
 function setOnlineDB(v){
@@ -1583,7 +1580,10 @@ function wAddCustomer(){
 // ═══════════════════════════════════════════════════
 //  PICKUP REQUESTS
 // ═══════════════════════════════════════════════════
+let _puListenerActive = false;
 function startPickupListener(){
+  if(_puListenerActive) return; // لا تضف listener مكرر
+  _puListenerActive = true;
   rdb.ref('pickupRequests').on('value',s=>renderPickupList(s.val()||{}));
 }
 
