@@ -1355,7 +1355,11 @@ function openCustDetail(id){
         <div style="font-size:12px;font-weight:700;color:var(--g)">${(c.cars||[]).filter(x=>x.active).length} ${lang==='ar'?'سيارة':'car(s)'}</div>
       </div>
       ${!(c.cars||[]).length
-        ? `<div style="font-size:12px;color:var(--mu);text-align:center;padding:8px">${lang==='ar'?'لا توجد سيارات مسجلة':'No cars registered'}</div>`
+        ? `<div style="font-size:12px;color:var(--mu);text-align:center;padding:8px">${lang==='ar'?'لا توجد سيارات مسجلة':'No cars registered'}</div>
+           <div style="display:flex;gap:8px;margin-top:8px">
+             <input id="new-plate-${c.id}" class="inp" type="text" placeholder="${lang==='ar'?'أضف رقم لوحة...':'Add plate number...'}" style="margin:0;flex:1;font-size:13px;padding:10px"/>
+             <button onclick="addCarToExisting('${c.id}')" style="background:var(--g);color:#000;border:none;border-radius:10px;padding:10px 14px;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;cursor:pointer">${lang==='ar'?'إضافة':'Add'}</button>
+           </div>`
         : (c.cars||[]).map((car,ci)=>`
           <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--br2)">
             <span style="font-size:18px">${car.active?'🚗':'🚫'}</span>
@@ -1438,6 +1442,20 @@ function editWashes(id, delta){
   rdb.ref('glint/customers/'+id).update({drops:newDrops,totalWashes:newTotal,history:hist});
   toast(delta>0?t('add_wash_ok'):t('rem_wash_ok'),'ok');
   setTimeout(()=>openCustDetail(id),500);
+}
+
+function addCarToExisting(custId){
+  const input=document.getElementById('new-plate-'+custId);
+  if(!input) return;
+  const plate=input.value.trim();
+  if(!plate){ toast(lang==='ar'?'أدخل رقم اللوحة':'Enter plate number','er'); return; }
+  const c=customers[custId]; if(!c) return;
+  const cars=[...(c.cars||[])];
+  if(cars.find(car=>car.active&&car.plate===plate)){ toast(lang==='ar'?'⚠️ هذه اللوحة مسجلة':'⚠️ Plate already exists','er'); return; }
+  cars.push({id:'CAR'+Date.now(), plate, addedAt:tsNow(), active:true});
+  rdb.ref('glint/customers/'+custId+'/cars').set(cars);
+  toast((lang==='ar'?'🚗 أُضيفت السيارة: ':'🚗 Car added: ')+plate,'ok');
+  setTimeout(()=>openCustDetail(custId),500);
 }
 
 function removeCar(custId, carIdx){
@@ -2187,19 +2205,30 @@ function stopRepeatAlarm(){
 
 async function sendFCMviaWorker(title, body, token){
   try{
-    await fetch(WORKER_URL,{
+    console.log('📤 Sending FCM via Worker to token:', token.slice(0,15)+'...');
+    const resp=await fetch(WORKER_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({token,title,body,secret:WORKER_SECRET})
     });
-  }catch(e){ console.warn('FCM Worker:', e.message); }
+    const data=await resp.json();
+    console.log('FCM Worker response:', resp.status, JSON.stringify(data).slice(0,100));
+  }catch(e){ console.warn('FCM Worker error:', e.message); }
 }
 
 async function sendFCMtoAllWorkers(title, body){
-  const targets=Object.values(workers).filter(w=>w.online&&w.fcmToken);
-  for(const w of targets) await sendFCMviaWorker(title, body, w.fcmToken);
-  // أيضاً أرسل للعامل الحالي إذا عنده token
+  // اقرأ العمال الأونلاين مباشرة من Firebase (أحدث بيانات)
+  const snap=await rdb.ref('glint/workers').once('value');
+  const allWorkers=snap.val()||{};
+  const targets=Object.values(allWorkers).filter(w=>w.online&&w.fcmToken);
+  console.log('📱 FCM targets:', targets.length, 'workers');
+  for(const w of targets){
+    console.log('  → Sending to:', w.name, w.fcmToken.slice(0,15)+'...');
+    await sendFCMviaWorker(title, body, w.fcmToken);
+  }
+  // أرسل للعامل الحالي إذا عنده token ولم يُرسَل له
   if(fcmTok && cWorker && !targets.find(w=>w.id===cWorker.id)){
+    console.log('  → Sending to current worker:', cWorker.name);
     sendFCMviaWorker(title, body, fcmTok);
   }
 }
