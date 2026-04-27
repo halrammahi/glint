@@ -1702,8 +1702,11 @@ function renderPickupList(reqs){
   const avail=Object.values(reqs).filter(r=>r.status==='waiting'&&!r.workerId);
   if(avail.length>_lastPuCount&&_lastPuCount>=0){
     const newest=avail.sort((a,b)=>b.timestamp-a.timestamp)[0];
-    if(newest&&tsNow()-newest.timestamp<15000) sendNotif(lang==='ar'?'🚗 طلب استلام جديد!':'🚗 New Pickup Request!', newest.customerName);
-  }
+    if(newest&&tsNow()-newest.timestamp<15000) sendNotif(
+          lang==='ar'?'🚗 طلب استلام جديد!':'🚗 New Pickup Request!',
+          newest.customerName+(newest.carPlate?' · 🔢 '+newest.carPlate:'')
+        );
+      }
   _lastPuCount=avail.length;
   if(!avail.length){ el.innerHTML=`<div class="empty"><div class="empty-ico">🟢</div><div>${t('no_reqs')}</div></div>`; return; }
   el.innerHTML=avail.map(r=>{
@@ -1740,7 +1743,9 @@ function acceptPickup(reqId){
   },(err,committed,snap)=>{
     if(!committed){ toast(lang==='ar'?'⚠️ قُبل من عامل آخر':'⚠️ Taken by another worker','er'); return; }
     const r=snap.val();
-    jobActive={reqId,customerId:r.customerId,customerName:r.customerName,customerPhone:r.customerPhone,lat:r.lat,lng:r.lng,step:0};
+    jobActive={reqId,customerId:r.customerId,customerName:r.customerName,
+      customerPhone:r.customerPhone,carPlate:r.carPlate||'',
+      lat:r.lat,lng:r.lng,step:0};
     rdb.ref('notifications/'+r.customerId).push({type:'accepted',worker:cWorker.name,time:tsNow()});
     $id('w-job').style.display='block';
     $id('w-pu-sec').style.display='none';
@@ -1767,9 +1772,9 @@ function renderJobStep(){
   if(!jobActive) return;
   const s=STEPS[jobActive.step]||STEPS[0];
   setText('wj-ico',s.ico); setText('wj-ttl',t(s.tK));
-  const jCust=customers[jobActive.customerId];
-  const jPlates=(jCust?.cars||[]).filter(c=>c.active).map(c=>c.plate).join(' / ');
-  setText('wj-sub',t(s.sK)+'\n'+jobActive.customerName+(jPlates?' · 🔢'+jPlates:''));
+  // اعرض فقط اللوحة المختارة من الطلب
+  const jPlate = jobActive.carPlate || '';
+  setText('wj-sub',t(s.sK)+'\n'+jobActive.customerName+(jPlate?' · 🔢 '+jPlate:''));
   setText('wj-btn',t(s.bK));
   $id('wj-steps').innerHTML=STEPS.map((st,i)=>`<div class="fs ${i<jobActive.step?'done':i===jobActive.step?'active':''}">${st.ico}</div>`).join('');
   const mb=$id('wj-map'); mb.style.display=s.map?'flex':'none'; setText('wj-map',t('open_map'));
