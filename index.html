@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="html-root">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GLINT">
+<meta name="theme-color" content="#080808">
+<title>GLINT CAR WASH</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+:root{
+  --g:#C9A84C;--g2:#F0D080;--g3:rgba(201,168,76,.15);--g4:rgba(201,168,76,.07);
+  --bk:#080808;--s1:#0f0f0f;--s2:#141414;--s3:#1a1a1a;--s4:#202020;
+  --br:rgba(201,168,76,.18);--br2:rgba(255,255,255,.06);
+  --tx:#f0ece0;--mu:#6a6050;--mu2:#8a8070;
+  --ok:#22c55e;--er:#ef4444;--bl:#3b82f6;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{font-family:'Cairo',sans-serif;background:var(--bk);color:var(--tx)}
+.scr{display:none;height:100dvh;flex-direction:column;overflow:hidden}
+.scr.on{display:flex}
+.scrollable{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1}
+/* TOAST */
+.toast{position:fixed;bottom:calc(22px + var(--sb));left:50%;transform:translateX(-50%) translateY(120px);
+  background:var(--s3);border:1px solid var(--br);color:var(--tx);padding:12px 22px;border-radius:50px;
+  font-size:14px;font-weight:600;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  white-space:nowrap;max-width:90vw;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{background:#14532d;border-color:var(--ok);color:#86efac}
+.toast.yay{background:#1a1000;border-color:var(--g);color:var(--g2)}
+.toast.err{background:#450a0a;border-color:var(--er);color:#fca5a5}
+/* LOADING */
+#lov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#lov.on{display:flex}
+.spin{width:38px;height:38px;border:3px solid var(--s4);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* LANG BTN */
+#lang-btn{position:fixed;z-index:7000;background:var(--s2);border:1px solid var(--br);border-radius:20px;
+  padding:7px 14px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;color:var(--g);
+  bottom:calc(var(--sb) + 18px);right:16px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+html[dir="ltr"] #lang-btn{right:auto;left:16px}
+/* INPUTS */
+.inp{width:100%;padding:14px 15px;background:var(--s3);border:1.5px solid var(--br2);border-radius:13px;
+  color:var(--tx);font-family:'Cairo',sans-serif;font-size:15px;outline:none;-webkit-appearance:none;
+  transition:border .2s;margin-bottom:10px}
+.inp:focus{border-color:var(--g)}
+.inp::placeholder{color:var(--mu)}
+.lbl{font-size:11px;color:var(--mu);letter-spacing:1.5px;font-weight:700;display:block;margin-bottom:7px;margin-top:4px}
+/* PINS */
+.pin-row{display:flex;gap:10px;justify-content:center;margin-bottom:14px}
+.pin-box{width:54px;height:62px;background:var(--s3);border:1.5px solid var(--br2);border-radius:13px;
+  font-size:26px;text-align:center;color:var(--tx);font-family:'Cairo',sans-serif;outline:none;-webkit-appearance:none;transition:border .2s}
+.pin-box:focus{border-color:var(--g)}
+/* BUTTONS */
+.btn{padding:13px 18px;border:none;border-radius:12px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:active{transform:scale(.96)}
+.btn-g{background:var(--g);color:var(--bk)}
+.btn-g:active{background:var(--g2)}
+.btn-full{width:100%;padding:15px;font-size:15px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px}
+.btn-ok{background:#14532d;color:#86efac;border:1px solid #15803d}
+.btn-dim{background:transparent;border:1px solid var(--br2);color:var(--mu)}
+.btn-er{background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5}
+.btn-bl{background:#1e3a6e;border:1px solid var(--bl);color:#93c5fd}
+.btn-or{background:#431407;border:1px solid #c2410c;color:#fdba74}
+/* CARDS */
+.card{background:var(--s2);border:1px solid var(--br2);border-radius:16px;padding:16px;margin-bottom:12px}
+.card-ttl{font-size:11px;color:var(--mu);letter-spacing:1.5px;font-weight:700;margin-bottom:12px;text-transform:uppercase}
+/* SPLASH */
+#scr-splash{align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 30%,rgba(201,168,76,.1) 0%,transparent 65%) var(--bk)}
+.sp-drop{font-size:68px;filter:drop-shadow(0 0 28px rgba(201,168,76,.5));margin-bottom:12px}
+.sp-name{font-size:46px;font-weight:900;letter-spacing:9px;color:var(--g)}
+.sp-tag{font-size:11px;letter-spacing:4px;color:var(--mu);margin-top:5px}
+.sp-roles{display:flex;flex-direction:column;gap:10px;width:100%;max-width:310px;margin-top:50px}
+.role-btn{padding:17px 20px;border:1px solid var(--br);border-radius:15px;background:var(--s2);
+  color:var(--tx);font-family:'Cairo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;gap:14px;transition:all .2s;width:100%}
+.role-btn:active{transform:scale(.97);border-color:var(--g);background:var(--g4)}
+/* LOGIN */
+.login-wrap{padding:40px 28px;display:flex;flex-direction:column;width:100%;max-width:360px;margin:0 auto}
+.login-hdr{text-align:center;margin-bottom:40px}
+.login-ico{font-size:42px;margin-bottom:10px}
+.login-ttl{font-size:22px;font-weight:900;color:var(--g);letter-spacing:2px}
+.login-sub{font-size:12px;color:var(--mu);margin-top:5px}
+.login-main-btn{width:100%;padding:16px;background:var(--g);color:var(--bk);border:none;border-radius:13px;
+  font-family:'Cairo',sans-serif;font-size:16px;font-weight:900;cursor:pointer;transition:all .15s}
+.login-main-btn:active{transform:scale(.97)}
+.login-err{color:var(--er);font-size:13px;text-align:center;margin-top:10px;min-height:18px}
+.back-link{text-align:center;margin-top:16px;color:var(--mu);font-size:13px;cursor:pointer}
+/* OWNER */
+.o-hdr{background:var(--s1);border-bottom:1px solid var(--br);padding:calc(var(--st) + 13px) 16px 0;flex-shrink:0}
+.o-hdr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-ic{width:32px;height:32px;background:var(--g);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.brand-nm{font-size:17px;font-weight:900;letter-spacing:3px;color:var(--g)}
+.brand-sb{font-size:10px;color:var(--mu);letter-spacing:1px}
+.out-btn{background:transparent;border:1px solid var(--br2);color:var(--mu);padding:7px 13px;border-radius:20px;font-family:'Cairo',sans-serif;font-size:12px;cursor:pointer}
+.out-btn:active{color:var(--er);border-color:var(--er)}
+.o-tabs{display:flex;gap:1px;overflow-x:auto;scrollbar-width:none}
+.o-tabs::-webkit-scrollbar{display:none}
+.o-tab{flex:1;min-width:0;padding:10px 4px;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--mu);font-family:'Cairo',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s}
+.o-tab.on{color:var(--g);border-bottom-color:var(--g)}
+.o-pages{flex:1;overflow:hidden;position:relative}
+.o-pg{position:absolute;inset:0;overflow-y:auto;padding:14px 14px calc(14px + var(--sb));
+  opacity:0;pointer-events:none;-webkit-overflow-scrolling:touch}
+.o-pg.on{opacity:1;pointer-events:all}
+/* LIST */
+.li-row{display:flex;align-items:center;gap:11px;padding:13px;background:var(--s2);border:1px solid var(--br2);
+  border-radius:14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.li-row:active{border-color:var(--g)}
+.li-av{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0}
+.li-av-c{background:linear-gradient(135deg,#3a2800,var(--s4));border:1px solid var(--br);color:var(--g)}
+.li-av-w{background:var(--s3);border:1px solid var(--br2);color:var(--bl)}
+.li-info{flex:1;min-width:0}
+.li-nm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-mt{font-size:11px;color:var(--mu);margin-top:3px}
+.li-mini{display:flex;gap:3px;margin-top:5px}
+.dot-s{width:9px;height:9px;border-radius:50%;background:var(--s4)}
+.dot-s.on{background:var(--g)}
+.bdg{font-size:11px;font-weight:700;padding:4px 8px;border-radius:14px;background:var(--s3);color:var(--g);border:1px solid var(--br);white-space:nowrap}
+.bdg.free{background:var(--g3)}
+.odot{width:8px;height:8px;border-radius:50%;background:var(--mu);display:inline-block;margin-left:5px}
+.odot.on{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(--mu)}
+.e-ico{font-size:44px;margin-bottom:10px}
+.e-txt{font-size:13px;line-height:1.9}
+/* QR */
+.qr-res{display:none;margin-top:16px;text-align:center}
+.qr-res.on{display:block}
+.qr-frame{display:inline-block;background:white;padding:14px;border-radius:14px;border:2px solid var(--g)}
+.qr-nm{font-size:16px;font-weight:700;color:var(--g);margin-top:11px}
+.qr-id{font-size:11px;color:var(--mu);margin-top:3px;font-family:monospace}
+/* WORKER HDR */
+.w-hdr{background:var(--s1);border-bottom:1px solid var(--br2);padding:calc(var(--st) + 13px) 16px 13px;flex-shrink:0}
+.w-hdr-row{display:flex;align-items:center;justify-content:space-between}
+.w-ttl{font-size:18px;font-weight:900}
+.w-sub{font-size:11px;color:var(--mu);margin-top:2px}
+.tog{display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:22px;cursor:pointer;
+  font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;border:1px solid var(--br2);background:var(--s3)}
+.tog.on{background:rgba(34,197,94,.1);border-color:var(--ok)!important;color:var(--ok)}
+.tog.off{color:var(--mu)}
+/* SCAN */
+.scan-zone{background:var(--s3);border:2px dashed var(--br);border-radius:16px;padding:28px 20px;text-align:center;cursor:pointer}
+.scan-zone:active{border-color:var(--g)}
+.sz-ico{font-size:44px}
+.sz-hint{font-size:14px;color:var(--g);font-weight:700;margin-top:9px}
+.sz-sub{font-size:11px;color:var(--mu);margin-top:4px}
+/* SCAN RESULT */
+.sf-card{background:var(--s3);border:1px solid var(--br);border-radius:16px;padding:20px;text-align:center;margin-bottom:12px}
+.sf-av{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#4a3010,var(--g));
+  margin:0 auto 11px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:var(--bk)}
+.sf-nm{font-size:20px;font-weight:700}
+.sf-sb{font-size:12px;color:var(--mu);margin-top:5px}
+.dots-row{display:flex;justify-content:center;gap:5px;margin:13px 0}
+.dot-lg{width:26px;height:26px;border-radius:50%;background:var(--s4);border:1.5px solid var(--br2);display:flex;align-items:center;justify-content:center;font-size:12px}
+.dot-lg.on{background:var(--g3);border-color:var(--g)}
+/* PICKUP */
+.pk-card{background:var(--s2);border:1px solid var(--br);border-radius:16px;padding:16px;margin-bottom:12px;animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.pk-btns{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.pk-btns .btn{flex:1;padding:11px;font-size:13px;min-width:0}
+/* JOB FLOW */
+.job-card{background:var(--s3);border:1px solid var(--g);border-radius:16px;padding:18px;margin-bottom:12px;text-align:center}
+.jc-ico{font-size:40px;margin-bottom:8px}
+.jc-ttl{font-size:16px;font-weight:700;color:var(--g)}
+.jc-sub{font-size:12px;color:var(--mu);margin-top:5px;line-height:1.8}
+.flow-steps{display:flex;align-items:center;justify-content:center;gap:6px;margin:14px 0;flex-wrap:wrap}
+.flow-step{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;background:var(--s4);color:var(--mu);border:1px solid var(--br2)}
+.flow-step.done{background:var(--g3);color:var(--g);border-color:var(--g)}
+.flow-step.active{background:var(--g);color:var(--bk)}
+/* CUST HERO */
+.c-hero{background:linear-gradient(160deg,#0d0b00,#120e00 50%,#080808);
+  padding:calc(var(--st) + 26px) 22px 26px;border-bottom:1px solid var(--br);position:relative;overflow:hidden;flex-shrink:0}
+.c-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;
+  background:radial-gradient(circle,rgba(201,168,76,.09) 0%,transparent 70%);pointer-events:none}
+.ch-brand{font-size:10px;letter-spacing:4px;color:var(--g);opacity:.5;margin-bottom:14px;font-weight:700}
+.ch-nm{font-size:26px;font-weight:700;margin-top:2px}
+.ch-lvl{font-size:12px;color:var(--g);margin-top:5px;font-weight:700}
+.c-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:16px}
+.cs-box{background:rgba(255,255,255,.04);border:1px solid var(--br2);border-radius:12px;padding:11px 5px;text-align:center}
+.cs-val{font-size:22px;font-weight:700;color:var(--g);line-height:1}
+.cs-lbl{font-size:10px;color:var(--mu);margin-top:4px}
+/* BUCKET */
+.bucket-box{background:var(--s2);border:1px solid var(--br2);border-radius:17px;padding:17px;margin-bottom:13px}
+.bb-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:13px}
+.bb-ttl{font-size:15px;font-weight:700}
+.bb-sub{font-size:11px;color:var(--mu);margin-top:3px}
+.bb-cnt{font-size:30px;font-weight:900;color:var(--g)}
+.bb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:13px}
+.bb-drop{aspect-ratio:1;border-radius:50%;background:var(--s3);border:1.5px solid var(--br2);display:flex;align-items:center;justify-content:center;font-size:17px}
+.bb-drop.on{background:var(--g3);border-color:var(--g)}
+.prog{height:6px;background:var(--s3);border-radius:10px;overflow:hidden;margin-bottom:7px}
+.prog-in{height:100%;background:linear-gradient(90deg,#7a5c1e,var(--g));border-radius:10px;transition:width 1s ease}
+/* DETAIL MODAL */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:5000;align-items:flex-end;justify-content:center}
+.modal.on{display:flex}
+.modal-box{background:var(--s2);border:1px solid var(--br);border-radius:22px 22px 0 0;width:100%;max-width:480px;
+  max-height:92dvh;overflow-y:auto;padding:24px 20px calc(24px + var(--sb));-webkit-overflow-scrolling:touch}
+.det-hdr{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--br2)}
+.det-av{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex-shrink:0}
+.det-av-c{background:linear-gradient(135deg,#4a3010,var(--g));color:var(--bk)}
+.det-av-w{background:linear-gradient(135deg,#0f1f3d,#1e3a6e);color:#93c5fd}
+.det-nm{font-size:20px;font-weight:700}
+.det-id{font-size:11px;color:var(--mu);font-family:monospace;margin-top:3px}
+.det-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.det-box{background:var(--s3);border:1px solid var(--br2);border-radius:13px;padding:13px 6px;text-align:center}
+.det-val{font-size:22px;font-weight:900;color:var(--g)}
+.det-lbl{font-size:10px;color:var(--mu);margin-top:4px}
+.det-sec-ttl{font-size:11px;color:var(--mu);letter-spacing:1.5px;font-weight:700;margin-bottom:10px;margin-top:16px}
+.hist-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--br2)}
+.hist-item:last-child{border-bottom:none}
+.hist-ic{width:34px;height:34px;border-radius:9px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.hist-mn{font-size:13px;font-weight:600}
+.hist-dt{font-size:11px;color:var(--mu);margin-top:2px}
+.hist-dp{margin-right:auto;font-size:12px;font-weight:700;color:var(--g)}
+html[dir="ltr"] .hist-dp{margin-right:0;margin-left:auto}
+/* STATS */
+.stat-hero{background:linear-gradient(135deg,#0e0b00,#141000);border:1px solid var(--br);border-radius:17px;padding:18px;margin-bottom:13px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px}
+.stat-box{background:rgba(255,255,255,.04);border:1px solid var(--br2);border-radius:13px;padding:13px 7px;text-align:center}
+.stat-val{font-size:26px;font-weight:900;color:var(--g);line-height:1}
+.stat-lbl{font-size:10px;color:var(--mu);margin-top:4px}
+.wsc{background:var(--s2);border:1px solid var(--br2);border-radius:15px;padding:15px;margin-bottom:9px;display:flex;align-items:center;gap:13px}
+.wsc-rank{width:30px;height:30px;border-radius:50%;background:var(--s4);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--g);flex-shrink:0}
+.wsc-rank.gold{background:var(--g3);border-color:var(--g);font-size:16px}
+.wsc-info{flex:1;min-width:0}
+.wsc-nm{font-size:14px;font-weight:700}
+.wsc-sub{font-size:11px;color:var(--mu);margin-top:2px}
+.wsc-bar-w{height:5px;background:var(--s4);border-radius:10px;margin-top:7px;overflow:hidden}
+.wsc-bar{height:100%;background:linear-gradient(90deg,#7a5c1e,var(--g));border-radius:10px;transition:width .8s ease}
+.wsc-cnt{text-align:center;flex-shrink:0}
+.wsc-n{font-size:22px;font-weight:900;color:var(--g)}
+.wsc-l{font-size:10px;color:var(--mu)}
+/* PERIOD */
+.period-row{display:flex;gap:6px;margin-bottom:13px}
+.period-btn{flex:1;padding:8px;background:var(--s3);border:1px solid var(--br2);border-radius:10px;color:var(--mu);font-family:'Cairo',sans-serif;font-size:11px;font-weight:700;cursor:pointer}
+.period-btn.on{background:var(--g3);border-color:var(--g);color:var(--g)}
+/* ROLE CHIP */
+.chip{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;display:inline-block}
+.chip-mgr{background:rgba(201,168,76,.2);color:var(--g);border:1px solid var(--br)}
+.chip-wrk{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3)}
+/* CUST PICKUP */
+.pu-sec{background:var(--s2);border:1px solid var(--br2);border-radius:17px;padding:17px;margin-bottom:13px}
+.pu-ttl{font-size:14px;font-weight:700;margin-bottom:4px}
+.pu-sub{font-size:12px;color:var(--mu);margin-bottom:13px}
+.pu-status{text-align:center;padding:18px}
+.pu-ico{font-size:38px;margin-bottom:8px}
+.pu-txt{font-size:14px;font-weight:700;color:var(--g)}
+.pu-sbl{font-size:12px;color:var(--mu);margin-top:4px}
+/* FREE */
+.free-big{background:linear-gradient(135deg,#1a1000,#2a1800);border:1px solid var(--g);border-radius:17px;padding:20px;text-align:center;margin-bottom:13px}
+/* MY QR MODAL */
+.myqr-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:4000;align-items:center;justify-content:center;padding:20px}
+.myqr-modal.on{display:flex}
+.myqr-box{background:var(--s2);border:1px solid var(--br);border-radius:22px;padding:28px;text-align:center;max-width:300px;width:100%}
+.myqr-frame{display:inline-block;background:white;padding:13px;border-radius:13px;border:2px solid var(--g)}
+/* QR SCANNER */
+#qrscan-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:6000;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+#qrscan-modal.on{display:flex}
+/* Html5QrCode overrides — نخلي UI المكتبة يتناسب مع تصميمنا */
+#qr-reader{border:none!important;background:#000!important}
+#qr-reader video{border-radius:12px!important;width:100%!important}
+#qr-reader img{display:none!important}
+#qr-reader__scan_region{background:transparent!important;border:none!important}
+#qr-reader__scan_region img{display:none!important}
+#qr-reader__dashboard{background:transparent!important;padding:0!important}
+#qr-reader__dashboard_section_swaplink{display:none!important}
+#qr-reader__status_span{display:none!important}
+#qr-reader__camera_selection{display:none!important}
+#qr-reader__header_message{display:none!important}
+#qr-reader__torch_button{
+  margin-top:8px!important;width:100%!important;padding:10px!important;
+  background:var(--s3)!important;border:1px solid var(--br2)!important;
+  color:var(--g)!important;border-radius:10px!important;font-size:13px!important;
+}
+#qrscan-modal{background:rgba(0,0,0,.95)}
+/* PRINT */
+@media print{body *{visibility:hidden}#pzone,#pzone *{visibility:visible}#pzone{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:white}}
+</style>
+
+<script>
+// دوال أساسية تعمل فوراً بدون انتظار Firebase
+function show(id){
+  document.querySelectorAll('.scr').forEach(function(s){s.classList.remove('on');});
+  var el = document.getElementById('scr-'+id);
+  if(el) el.classList.add('on');
+}
+function goLogin(r){
+  if(r==='owner') show('owner-login');
+  else if(r==='worker') show('worker-login');
+  else show('cust');
+}
+function toggleLang(){
+  var lang = localStorage.getItem('glint_lang')||'ar';
+  lang = lang==='ar'?'en':'ar';
+  localStorage.setItem('glint_lang',lang);
+  var r=document.getElementById('html-root');
+  r.lang=lang; r.dir=lang==='ar'?'rtl':'ltr';
+  var btn=document.getElementById('lang-btn');
+  if(btn) btn.textContent=lang==='ar'?'🌐 EN':'🌐 عربي';
+}
+</script>
+</head>
+<body>
+
+<button id="lang-btn" onclick="toggleLang()">🌐 EN</button>
+<div id="lov"><div class="spin"></div><div style="font-size:13px;color:var(--mu)" id="loading-txt">جاري التحميل...</div></div>
+
+<!-- SPLASH -->
+<div class="scr on" id="scr-splash">
+  <div style="text-align:center;animation:sIn .8s ease forwards">
+    <div style="font-size:68px;filter:drop-shadow(0 0 28px rgba(201,168,76,.5));margin-bottom:12px">💧</div>
+    <div style="font-size:46px;font-weight:900;letter-spacing:9px;color:var(--g)">GLINT</div>
+    <div id="sp-tag" style="font-size:11px;letter-spacing:4px;color:var(--mu);margin-top:5px">CAR WASH · نظام الولاء</div>
+  </div>
+  <div class="sp-roles">
+    <button class="role-btn" onclick="goLogin('owner')"><span style="font-size:22px">👑</span><span id="rl-owner" style="flex:1;text-align:right">مالك المحطة</span><span style="color:var(--mu)">←</span></button>
+    <button class="role-btn" onclick="goLogin('worker')"><span style="font-size:22px">🧹</span><span id="rl-worker" style="flex:1;text-align:right">العامل</span><span style="color:var(--mu)">←</span></button>
+    <button class="role-btn" onclick="goLogin('cust')"><span style="font-size:22px">🚗</span><span id="rl-cust" style="flex:1;text-align:right">الزبون</span><span style="color:var(--mu)">←</span></button>
+  </div>
+</div>
+
+<!-- OWNER LOGIN -->
+<div class="scr" id="scr-owner-login" style="align-items:center;justify-content:center;background:var(--bk)">
+  <div class="login-wrap">
+    <div class="login-hdr"><div class="login-ico">👑</div><div id="ol-ttl" class="login-ttl">OWNER LOGIN</div><div id="ol-sub" class="login-sub">كلمة المرور السرية</div></div>
+    <label class="lbl" id="ol-pw-lbl">🔐 كلمة المرور</label>
+    <input class="inp" type="password" id="opw" placeholder="••••••••" onkeyup="if(event.key==='Enter')ownerLogin()"/>
+    <button class="login-main-btn" id="ol-btn" onclick="ownerLogin()">دخول</button>
+    <div class="login-err" id="olerr"></div>
+    <div class="back-link" id="ol-back" onclick="show('splash')">← رجوع</div>
+  </div>
+</div>
+
+<!-- WORKER LOGIN -->
+<div class="scr" id="scr-worker-login" style="align-items:center;justify-content:center;background:var(--bk)">
+  <div class="login-wrap">
+    <div class="login-hdr"><div class="login-ico">🧹</div><div id="wl-ttl" class="login-ttl">WORKER LOGIN</div><div id="wl-sub" class="login-sub">اسم المستخدم + ٤ أرقام</div></div>
+    <label class="lbl" id="wl-name-lbl">👤 اسم العامل</label>
+    <input class="inp" type="text" id="wname-inp" placeholder="الاسم..."/>
+    <label class="lbl" id="wl-pin-lbl">🔢 الرقم السري</label>
+    <div class="pin-row">
+      <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="p0" oninput="pinMove(0)"/>
+      <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="p1" oninput="pinMove(1)"/>
+      <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="p2" oninput="pinMove(2)"/>
+      <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="p3" oninput="pinMove(3)" onkeyup="if(event.key==='Enter')workerLogin()"/>
+    </div>
+    <button class="login-main-btn" id="wl-btn" onclick="workerLogin()">دخول</button>
+    <div class="login-err" id="wlerr"></div>
+    <div class="back-link" id="wl-back" onclick="show('splash')">← رجوع</div>
+  </div>
+</div>
+
+<!-- CUST LOGIN -->
+<div class="scr" id="scr-cust" style="align-items:center;justify-content:center;background:var(--bk)">
+  <div class="login-wrap">
+    <div class="login-hdr"><div class="login-ico">🚗</div><div id="cl-ttl" class="login-ttl">بوابة الزبون</div><div id="cl-sub" class="login-sub">أدخل رقم هاتفك لرؤية رصيدك</div></div>
+    <label class="lbl" id="cl-ph-lbl">📱 رقم الهاتف</label>
+    <input class="inp" type="tel" id="cust-phone" placeholder="07xxxxxxxxx" onkeyup="if(event.key==='Enter')custLogin()"/>
+    <button class="login-main-btn" id="cl-btn" onclick="custLogin()">دخول</button>
+    <div class="login-err" id="clerr"></div>
+    <div class="back-link" id="cl-back" onclick="show('splash')">← رجوع</div>
+  </div>
+</div>
+
+<!-- CUST DASHBOARD -->
+<div class="scr" id="scr-cust-dash">
+  <div class="c-hero">
+    <div id="c-brand" class="ch-brand">GLINT · CAR WASH</div>
+    <div id="c-greet" style="font-size:13px;color:var(--mu)">أهلاً وسهلاً،</div>
+    <div class="ch-nm" id="c-nm">—</div>
+    <div class="ch-lvl" id="c-lvl"></div>
+    <div class="c-stats">
+      <div class="cs-box"><div class="cs-val" id="c-tot">0</div><div class="cs-lbl" id="cs-lbl-tot">إجمالي</div></div>
+      <div class="cs-box"><div class="cs-val" id="c-drp">0</div><div class="cs-lbl" id="cs-lbl-drp">القطرات</div></div>
+      <div class="cs-box"><div class="cs-val" id="c-fr">0</div><div class="cs-lbl" id="cs-lbl-fr">مجانية</div></div>
+    </div>
+  </div>
+  <div class="scrollable" style="padding:16px 14px calc(30px + var(--sb))">
+    <div style="display:flex;gap:10px;margin-bottom:13px">
+      <button class="btn btn-g" id="c-qr-btn" onclick="showMyQR()" style="flex:1;padding:14px;font-size:14px">📱 عرض QR الخاص بي</button>
+      <button class="btn btn-dim" id="c-exit-btn" onclick="show('splash')" style="padding:14px;font-size:14px">خروج</button>
+    </div>
+    <div class="bucket-box">
+      <div class="bb-top">
+        <div><div class="bb-ttl" id="c-bkt-ttl">دلو قطراتك 💧</div><div class="bb-sub" id="c-bkt-sub">كل 10 = غسلة مجانية</div></div>
+        <div class="bb-cnt" id="c-cnt">0/10</div>
+      </div>
+      <div class="bb-grid" id="c-bucket"></div>
+      <div class="prog"><div class="prog-in" id="c-prog" style="width:0%"></div></div>
+      <div style="font-size:12px;color:var(--mu);text-align:center;margin-top:6px" id="c-plbl"></div>
+    </div>
+    <div class="free-big" id="c-free-card" style="display:none">
+      <div style="font-size:42px;margin-bottom:7px">🎁</div>
+      <div style="font-size:17px;font-weight:700;color:var(--g)" id="c-free-ttl">لديك غسلة مجانية!</div>
+      <div style="font-size:13px;color:var(--mu);margin-top:5px" id="c-free-cnt"></div>
+    </div>
+    <div class="pu-sec">
+      <div class="pu-ttl" id="c-pu-ttl">🚗 طلب استلام سيارتك</div>
+      <div class="pu-sub" id="c-pu-sub">يأتيك العامل إلى موقعك (خلال 7 كم)</div>
+      <div id="pickup-status-area">
+        <button class="btn btn-g btn-full" id="c-req-btn" onclick="requestPickup()">📍 اطلب الاستلام من موقعي</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-ttl" id="c-hist-ttl">سجل الغسلات</div>
+      <div id="c-hist"></div>
+    </div>
+  </div>
+</div>
+
+<!-- OWNER APP -->
+<div class="scr" id="scr-owner">
+  <div class="o-hdr">
+    <div class="o-hdr-row">
+      <div class="brand"><div class="brand-ic">💧</div><div><div class="brand-nm">GLINT</div><div class="brand-sb" id="o-panel-lbl">OWNER PANEL</div></div></div>
+      <button class="out-btn" id="o-logout-btn" onclick="ownerLogout()">خروج ↩</button>
+    </div>
+    <div class="o-tabs">
+      <button class="o-tab on" id="otab0" onclick="otab(0)">➕ زبون</button>
+      <button class="o-tab" id="otab1" onclick="otab(1)">👷 عامل</button>
+      <button class="o-tab" id="otab2" onclick="otab(2)">👥 الزبائن</button>
+      <button class="o-tab" id="otab3" onclick="otab(3)">🧹 العمال</button>
+      <button class="o-tab" id="otab4" onclick="otab(4)">📊 إحصائيات</button>
+    </div>
+  </div>
+  <div class="o-pages">
+    <!-- ADD CUSTOMER -->
+    <div class="o-pg on" id="op0">
+      <div class="card">
+        <div class="card-ttl" id="ac-ttl">إضافة زبون جديد</div>
+        <input class="inp" type="text" id="new-cname" placeholder="اسم الزبون..."/>
+        <input class="inp" type="tel" id="new-cphone" placeholder="رقم الهاتف..."/>
+        <button class="btn btn-g btn-full" id="ac-btn" onclick="addCustomer()">➕ إضافة زبون</button>
+        <div class="qr-res" id="qr-res">
+          <div class="qr-frame"><div id="qr-out"></div></div>
+          <div class="qr-nm" id="qr-nm"></div>
+          <div class="qr-id" id="qr-id-lbl"></div>
+          <button class="btn btn-g btn-full" id="print-btn" onclick="printQR()" style="margin-top:12px">🖨️ طباعة QR Code</button>
+        </div>
+      </div>
+      <div class="card" style="background:var(--s3)">
+        <div style="font-size:12px;color:var(--mu);line-height:2.3">
+          <b id="how-ttl" style="color:var(--g)">كيف يعمل النظام؟</b><br>
+          <span id="how1">١ · أضف اسم + رقم هاتف الزبون ← ينشأ QR Code</span><br>
+          <span id="how2">٢ · اطبع الـ QR والصقه داخل سيارة الزبون</span><br>
+          <span id="how3">٣ · العامل يمسح الكود عند كل غسلة</span><br>
+          <span id="how4">٤ · كل 10 غسلات = غسلة مجانية 🎁</span><br>
+          <span id="how5">٥ · الزبون يرى رصيده بمسح الكود أو برقم هاتفه</span>
+        </div>
+      </div>
+    </div>
+    <!-- ADD WORKER -->
+    <div class="o-pg" id="op1">
+      <div class="card">
+        <div class="card-ttl" id="aw-ttl">إضافة عامل جديد</div>
+        <input class="inp" type="text" id="new-wname" placeholder="اسم العامل..."/>
+        <label class="lbl" id="aw-pin-lbl">الرقم السري (٤ أرقام)</label>
+        <div class="pin-row" style="justify-content:flex-start;gap:8px">
+          <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="wp0" oninput="wpinMove(0)"/>
+          <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="wp1" oninput="wpinMove(1)"/>
+          <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="wp2" oninput="wpinMove(2)"/>
+          <input class="pin-box" type="password" inputmode="numeric" maxlength="1" id="wp3" oninput="wpinMove(3)"/>
+        </div>
+        <label class="lbl" id="aw-role-lbl">🎯 صلاحية العامل</label>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button id="role-mgr" class="btn btn-g" onclick="selectRole('manager')" style="flex:1;padding:11px;font-size:13px" id="aw-mgr-btn">⭐ مسؤول</button>
+          <button id="role-wrk" class="btn btn-dim" onclick="selectRole('worker')" style="flex:1;padding:11px;font-size:13px" id="aw-wrk-btn">🔧 عامل عادي</button>
+        </div>
+        <button class="btn btn-g btn-full" id="aw-btn" onclick="addWorker()">➕ إضافة عامل</button>
+        <div id="worker-added" style="display:none;margin-top:13px;padding:13px;background:var(--s3);border:1px solid var(--ok);border-radius:12px;text-align:center;color:#86efac;font-size:14px"></div>
+      </div>
+    </div>
+    <!-- CUST LIST -->
+    <div class="o-pg" id="op2">
+      <input class="inp" type="search" id="csrch" placeholder="🔍 بحث..." oninput="renderCustList()" style="margin-bottom:10px"/>
+      <div style="display:flex;justify-content:space-between;margin-bottom:9px">
+        <span style="font-size:11px;color:var(--mu)" id="custs-lbl">الزبائن</span>
+        <span id="cc" style="font-size:12px;font-weight:700;color:var(--g)">0</span>
+      </div>
+      <div id="clist"></div>
+    </div>
+    <!-- WORKER LIST -->
+    <div class="o-pg" id="op3">
+      <div style="display:flex;justify-content:space-between;margin-bottom:9px">
+        <span style="font-size:11px;color:var(--mu)" id="workers-lbl">العمال</span>
+        <span id="wc" style="font-size:12px;font-weight:700;color:var(--bl)">0</span>
+      </div>
+      <div id="wlist"></div>
+    </div>
+    <!-- STATS -->
+    <div class="o-pg" id="op4">
+      <div class="period-row">
+        <button class="period-btn on" id="spb0" onclick="setPeriod('today')">اليوم</button>
+        <button class="period-btn" id="spb1" onclick="setPeriod('week')">الأسبوع</button>
+        <button class="period-btn" id="spb2" onclick="setPeriod('month')">الشهر</button>
+        <button class="period-btn" id="spb3" onclick="setPeriod('all')">الكل</button>
+      </div>
+      <div class="stat-hero">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-val" id="st-total">0</div><div class="stat-lbl" id="st-lbl-total">إجمالي الغسلات</div></div>
+          <div class="stat-box"><div class="stat-val" id="st-free">0</div><div class="stat-lbl" id="st-lbl-free">مجانية</div></div>
+          <div class="stat-box"><div class="stat-val" id="st-custs">0</div><div class="stat-lbl" id="st-lbl-custs">زبون نشط</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--mu);text-align:center" id="st-period-lbl">اليوم</div>
+      </div>
+      <div style="font-size:11px;color:var(--mu);letter-spacing:1.5px;font-weight:700;margin-bottom:10px" id="rank-ttl">🏆 ترتيب العمال</div>
+      <div id="worker-stats-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKER APP -->
+<div class="scr" id="scr-worker">
+  <div class="w-hdr">
+    <div class="w-hdr-row">
+      <div><div class="w-ttl" id="w-name-ttl">مرحباً</div><div class="w-sub" id="w-role-lbl">واجهة العامل</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">
+        <button class="tog off" id="online-tog" onclick="toggleOnline()">
+          <span class="odot" id="online-dot"></span><span id="online-lbl">أوفلاين</span>
+        </button>
+        <button class="out-btn" id="w-logout-btn" onclick="workerLogout()">خروج ↩</button>
+      </div>
+    </div>
+  </div>
+  <div class="scrollable" style="padding:14px 14px calc(14px + var(--sb))">
+    <div class="card">
+      <div class="card-ttl" id="w-scan-ttl">مسح QR الزبون</div>
+      <div class="scan-zone" onclick="openQRScanner()">
+        <div class="sz-ico">📷</div>
+        <div class="sz-hint" id="w-scan-hint">اضغط لفتح الكاميرا ومسح QR</div>
+        <div class="sz-sub" id="w-scan-sub">تلقائي · بدون ضغط إضافي</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input class="inp" type="text" id="wsinp" placeholder="أو رقم الزبون / هاتفه..." style="margin:0"/>
+        <button class="btn btn-g" id="w-srch-btn" onclick="wManualScan()">بحث</button>
+      </div>
+    </div>
+    <!-- Manager: add customer -->
+    <div id="w-mgr-section" style="display:none">
+      <div class="card">
+        <div class="card-ttl" id="w-mgr-ttl">إضافة زبون (مسؤول)</div>
+        <input class="inp" type="text" id="w-new-cname" placeholder="اسم الزبون..."/>
+        <input class="inp" type="tel" id="w-new-cphone" placeholder="رقم الهاتف..."/>
+        <button class="btn btn-g btn-full" id="w-add-c-btn" onclick="wAddCustomer()">➕ إضافة زبون</button>
+        <div class="qr-res" id="w-qr-res"><div class="qr-frame"><div id="w-qr-out"></div></div><div class="qr-nm" id="w-qr-nm"></div></div>
+      </div>
+    </div>
+    <!-- Scan result -->
+    <div id="wsf" style="display:none">
+      <div class="sf-card">
+        <div class="sf-av" id="wsf-av"></div>
+        <div class="sf-nm" id="wsf-nm"></div>
+        <div class="sf-sb" id="wsf-sb"></div>
+        <div class="dots-row" id="wsf-dots"></div>
+        <div id="wsf-free-wrap" style="display:none">
+          <div style="background:linear-gradient(135deg,#1a1000,#261600);border:1px solid var(--g);border-radius:12px;padding:13px 15px;display:flex;align-items:center;gap:11px;margin-bottom:10px">
+            <span style="font-size:22px">🎁</span>
+            <div><div style="font-size:13px;font-weight:700;color:#fde68a" id="w-has-free-ttl">لديه غسلة مجانية!</div><div style="font-size:11px;color:#b45309;margin-top:2px" id="w-has-free-sub">يمكن تفعيلها الآن</div></div>
+          </div>
+          <button class="btn btn-full" id="w-redeem-btn" onclick="redeemFree()" style="background:#7c2d12;border:1px solid #b45309;color:#fed7aa">🎁 تفعيل الغسلة المجانية</button>
+        </div>
+        <button class="btn btn-ok btn-full" id="w-confirm-btn" onclick="confirmWash()">✅ تسجيل الغسلة</button>
+        <button class="btn btn-dim btn-full" id="w-cancel-btn" onclick="cancelScan()">إلغاء</button>
+      </div>
+    </div>
+    <!-- Job flow -->
+    <div id="w-job-flow" style="display:none">
+      <div class="job-card">
+        <div class="jc-ico" id="wj-ico">🚗</div>
+        <div class="jc-ttl" id="wj-ttl"></div>
+        <div class="jc-sub" id="wj-sub"></div>
+        <div class="flow-steps" id="wj-steps"></div>
+        <button class="btn btn-g btn-full" id="wj-btn" onclick="jobNextStep()"></button>
+        <button class="btn btn-bl btn-full" id="wj-map-btn" onclick="openJobMap()" style="display:none;margin-top:6px">🗺️ افتح الخريطة</button>
+      </div>
+    </div>
+    <!-- Pickup requests -->
+    <div id="w-pickups-section">
+      <div style="font-size:11px;color:var(--mu);letter-spacing:1.5px;font-weight:700;margin-bottom:10px" id="w-pu-ttl">🚗 طلبات الاستلام</div>
+      <div id="pickup-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- QR SCANNER MODAL -->
+<div id="qrscan-modal">
+  <div style="width:100%;max-width:360px;padding:0 4px">
+    <div style="text-align:center;font-size:14px;font-weight:700;color:var(--g);letter-spacing:2px;margin-bottom:14px" id="qrs-ttl">📷 مسح QR CODE</div>
+    <!-- Html5QrCode يبني الـ UI هنا تلقائياً -->
+    <div id="qr-reader" style="width:100%;border-radius:16px;overflow:hidden;background:#000"></div>
+    <div style="text-align:center;font-size:12px;color:var(--mu);margin:10px 0 8px" id="qrs-hint">وجّه الكاميرا نحو QR Code الزبون</div>
+    <div style="text-align:center;font-size:11px;color:var(--g);margin-bottom:10px;min-height:16px" id="qrs-status"></div>
+    <button style="width:100%;padding:13px;background:var(--s3);border:1px solid var(--br2);border-radius:13px;color:var(--mu);font-family:'Cairo',sans-serif;font-size:14px;cursor:pointer;margin-top:4px" id="qrs-close" onclick="closeQRScanner().catch(()=>{})">✕ إغلاق</button>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal" id="detail-modal" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-box" id="detail-inner"></div>
+</div>
+
+<!-- MY QR MODAL -->
+<div class="myqr-modal" id="myqr-modal" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="myqr-box">
+    <div style="font-size:10px;letter-spacing:4px;color:var(--g);margin-bottom:15px;font-weight:700" id="myqr-ttl">QR CODE</div>
+    <div class="myqr-frame"><div id="myqr-out"></div></div>
+    <div style="font-size:18px;font-weight:700;margin-top:13px" id="myqr-name"></div>
+    <div style="font-size:11px;color:var(--mu);font-family:monospace;margin-top:4px" id="myqr-id"></div>
+    <button class="btn btn-dim btn-full" id="myqr-close" onclick="document.getElementById('myqr-modal').classList.remove('on')">إغلاق</button>
+  </div>
+</div>
+
+<!-- PRINT -->
+<div id="pzone" style="display:none">
+  <div style="text-align:center;font-family:sans-serif;padding:40px;background:white">
+    <div style="font-size:26px;font-weight:900;letter-spacing:6px;color:#0a0a0a">GLINT</div>
+    <div style="font-size:11px;letter-spacing:3px;color:#888;margin-bottom:18px">CAR WASH · LOYALTY</div>
+    <div id="pz-qr" style="display:inline-block"></div>
+    <div style="font-size:17px;font-weight:700;margin-top:14px;color:#0a0a0a" id="pz-nm"></div>
+    <div style="font-size:12px;color:#aaa;margin-top:4px;font-family:monospace" id="pz-id"></div>
+    <div style="font-size:12px;color:#aaa;margin-top:2px" id="pz-ph"></div>
+    <div style="margin-top:14px;font-size:12px;color:#666">امسح هذا الكود لمتابعة رصيدك</div>
+    <div style="font-size:11px;color:#999;margin-top:4px">كل 10 غسلات = غسلة مجانية 🎁</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<style>@keyframes sIn{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}</style>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════
+const OWNER_EMAIL = 'owner@glint.internal';
+const MAX_KM = 7;
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let rdb = null, fauth = null, currentFbUser = null;
+let db = { customers:{}, workers:{} };
+let currentWorker = null, currentCustomer = null;
+let pending = null, lastAddedId = null;
+let workerOnline = false, statPeriod = 'today', _wRole = 'manager';
+let activeJob = null;
+let html5QrCode = null;
+let fcmToken = null;
+
+// ── حفظ واستعادة جلسة العامل في localStorage ──
+function saveWorkerSession(worker, online){
+  localStorage.setItem('glint_ws', JSON.stringify({
+    id:worker.id, name:worker.name, role:worker.role,
+    pinHash:worker.pinHash, online:online, at:Date.now()
+  }));
+}
+function clearWorkerSession(){ localStorage.removeItem('glint_ws'); }
+function getWorkerSession(){
+  try{
+    const s=localStorage.getItem('glint_ws');
+    if(!s)return null;
+    const p=JSON.parse(s);
+    // صالح 16 ساعة
+    if(Date.now()-p.at > 16*60*60*1000){ clearWorkerSession(); return null; }
+    return p;
+  }catch(e){ return null; }
+}
+
+// ═══════════════════════════════════════════
+//  TRANSLATIONS
+// ═══════════════════════════════════════════
+let lang = localStorage.getItem('glint_lang') || 'ar';
+const TR = {
+  ar:{
+    sp_tag:'CAR WASH · نظام الولاء', rl_owner:'مالك المحطة', rl_worker:'العامل', rl_cust:'الزبون',
+    ol_ttl:'OWNER LOGIN', ol_sub:'كلمة المرور السرية', ol_pw:'🔐 كلمة المرور', enter:'دخول', back:'← رجوع',
+    wl_ttl:'WORKER LOGIN', wl_sub:'اسم المستخدم + ٤ أرقام', wl_name:'👤 اسم العامل', wl_pin:'🔢 الرقم السري',
+    cl_ttl:'بوابة الزبون', cl_sub:'أدخل رقم هاتفك لرؤية رصيدك', cl_ph:'📱 رقم الهاتف',
+    otab0:'➕ زبون', otab1:'👷 عامل', otab2:'👥 الزبائن', otab3:'🧹 العمال', otab4:'📊 إحصائيات',
+    o_panel:'OWNER PANEL', logout:'خروج ↩',
+    ac_ttl:'إضافة زبون جديد', ac_btn:'➕ إضافة زبون', print_qr:'🖨️ طباعة QR Code',
+    how_ttl:'كيف يعمل النظام؟',
+    how1:'١ · أضف اسم + رقم هاتف الزبون ← ينشأ QR Code',
+    how2:'٢ · اطبع الـ QR والصقه داخل سيارة الزبون',
+    how3:'٣ · العامل يمسح الكود عند كل غسلة',
+    how4:'٤ · كل 10 غسلات = غسلة مجانية 🎁',
+    how5:'٥ · الزبون يرى رصيده بمسح الكود أو برقم هاتفه',
+    aw_ttl:'إضافة عامل جديد', aw_pin:'الرقم السري (٤ أرقام)', aw_role:'🎯 صلاحية العامل',
+    aw_mgr:'⭐ مسؤول', aw_wrk:'🔧 عامل عادي', aw_btn:'➕ إضافة عامل',
+    custs_lbl:'الزبائن', workers_lbl:'العمال',
+    pd_today:'اليوم', pd_week:'الأسبوع', pd_month:'الشهر', pd_all:'الكل',
+    st_total:'إجمالي الغسلات', st_free:'مجانية', st_custs:'زبون نشط',
+    rank_ttl:'🏆 ترتيب العمال', washes:'غسلة',
+    w_panel:'واجهة العامل', mgr_role:'⭐ مسؤول', wrk_role:'🔧 عامل عادي',
+    online:'أونلاين', offline:'أوفلاين',
+    w_scan_ttl:'مسح QR الزبون', w_scan_hint:'اضغط لفتح الكاميرا ومسح QR',
+    w_scan_sub:'تلقائي · بدون ضغط إضافي', srch:'بحث',
+    w_mgr_ttl:'إضافة زبون (مسؤول)', w_add_c:'➕ إضافة زبون',
+    confirm_wash:'✅ تسجيل الغسلة', redeem:'🎁 تفعيل الغسلة المجانية',
+    cancel:'إلغاء', has_free:'لديه غسلة مجانية!', can_use:'يمكن تفعيلها الآن',
+    w_pu_ttl:'🚗 طلبات الاستلام',
+    qrs_ttl:'📷 مسح QR CODE', qrs_hint:'وجّه الكاميرا نحو QR Code الزبون', qrs_close:'✕ إغلاق',
+    myqr_ttl:'QR CODE', myqr_close:'إغلاق',
+    c_brand:'GLINT · CAR WASH', c_greet:'أهلاً وسهلاً،',
+    cs_tot:'إجمالي', cs_drp:'القطرات', cs_fr:'مجانية',
+    c_qr_btn:'📱 عرض QR الخاص بي', c_exit:'خروج',
+    bkt_ttl:'دلو قطراتك 💧', bkt_sub:'كل 10 = غسلة مجانية',
+    prog_free:'🎉 يحق لك غسلة مجانية!', prog_rem:' قطرة متبقية للغسلة المجانية',
+    free_ttl:'لديك غسلة مجانية!', free_sub:' غسلة مجانية جاهزة 🎁',
+    pu_ttl:'🚗 طلب استلام سيارتك', pu_sub:'يأتيك العامل إلى موقعك (خلال 7 كم)',
+    req_btn:'📍 اطلب الاستلام من موقعي',
+    pu_wait_ttl:'في انتظار العامل...', pu_wait_sub:'تم إرسال موقعك', pu_cancel:'إلغاء الطلب',
+    pu_acc_ttl:'العامل في الطريق!',
+    pu_arr_ttl:'العامل وصل إلى موقعك!', pu_arr_sub:'يأخذ سيارتك الآن للمحطة',
+    pu_del_ttl:'سيارتك وصلت!', pu_del_sub:'تم تنظيف سيارتك وإعادتها', new_req:'طلب جديد',
+    c_hist_ttl:'سجل الغسلات', no_hist:'لا يوجد سجل بعد',
+    hist_wash:'غسلة سيارة', hist_free:'غسلة مجانية', hist_pickup:'استلام وتوصيل', hist_edit:'تعديل',
+    map_btn:'🗺️ خريطة', accept_btn:'✅ قبول', accept_ok:'✅ قبلت الطلب — انطلق!',
+    no_worker:'⚠️ لا يوجد عامل متوفر حالياً', loc_loading:'⏳ جاري تحديد موقعك...',
+    loc_sent:'📍 تم إرسال طلب الاستلام!', loc_err:'❌ تعذر الوصول للموقع', no_gps:'الجهاز لا يدعم GPS',
+    cancel_ok:'تم إلغاء الطلب', offline_msg:'أنت أوفلاين', offline_hint:'فعّل الأونلاين لاستقبال الطلبات',
+    no_requests:'لا توجد طلبات حالياً',
+    go_online:'🟢 أنت أونلاين الآن — ستصلك الطلبات',
+    go_offline:'⚫ أنت أوفلاين — لن تصلك طلبات',
+    jf_acc_ttl:'في الطريق إلى الزبون', jf_acc_sub:'اضغط "وصلت" عند الوصول', jf_acc_btn:'📍 وصلت إلى الزبون',
+    jf_arr_ttl:'وصلت للزبون', jf_arr_sub:'اضغط للتوجه للمحطة', jf_arr_btn:'🏁 في الطريق للمحطة',
+    jf_sta_ttl:'في الطريق إلى المحطة', jf_sta_sub:'ابدأ الغسل عند الوصول', jf_sta_btn:'🚿 بدأت الغسل',
+    jf_was_ttl:'قيد الغسل', jf_was_sub:'اضغط عند الانتهاء', jf_was_btn:'✅ تم الغسل',
+    jf_don_ttl:'تم الغسل!', jf_don_sub:'وصّل السيارة للزبون', jf_don_btn:'🚗 في الطريق لتوصيل السيارة',
+    jf_del_ttl:'في الطريق لتوصيل السيارة', jf_del_sub:'وصّل السيارة لموقع الزبون', jf_del_btn:'✅ تم التوصيل',
+    open_map:'🗺️ افتح الخريطة',
+    notif_arr:'📍 تم إبلاغ الزبون بوصولك', notif_sta:'🏎️ في الطريق للمحطة',
+    notif_was:'🚿 بدأ الغسل', notif_don:'✅ تم الغسل! الآن وصّل السيارة',
+    notif_going:'🚗 في الطريق للتوصيل', notif_del:'🎉 تم التوصيل! أُرسل إشعار للزبون',
+    cust_arr:'✅ العامل وصل إلى موقعك!', cust_del:'🎉 سيارتك وصلت!',
+    det_phone:'📞 الهاتف', det_edit_ttl:'✏️ تعديل الغسلات (تصحيح الأخطاء)',
+    add_wash:'➕ غسلة', rem_wash:'➖ غسلة', det_drops:'💧 القطرات', det_recent:'📋 آخر العمليات',
+    del_cust:'🗑️ حذف الزبون', del_worker:'🗑️ حذف العامل', close:'إغلاق',
+    confirm_del_c:'حذف هذا الزبون؟', confirm_del_w:'حذف هذا العامل؟',
+    del_ok:'🗑 تم الحذف', del_w_ok:'🗑 تم حذف العامل',
+    wash_ok:'✅ سُجّلت الغسلة لـ ', free_ok:'🎁 تم تفعيل الغسلة المجانية لـ ',
+    congrats:'🎉 مبروك ', got_free:'! ربح غسلة مجانية!',
+    scan_nf:'❌ لم يُعثر على هذا الكود', found:'وجدنا ', no_cam:'❌ لم يتم السماح بالكاميرا',
+    no_perm:'ليس لديك صلاحية', err_name:'أدخل الاسم', err_phone:'أدخل الهاتف',
+    dup_phone:'هذا الرقم مسجل مسبقاً', added_c:'✅ أُضيف ', added_w:'✅ أُضيف العامل ',
+    err_wname:'أدخل اسم العامل', err_pin:'الرقم السري 4 أرقام', dup_w:'الاسم موجود مسبقاً',
+    wrong_pass:'❌ كلمة المرور خاطئة', wrong_worker:'❌ اسم أو رقم سري خاطئ',
+    conn_err:'❌ خطأ في الاتصال', loading:'جاري التحميل...', add_wash_ok:'➕ أُضيفت غسلة', rem_wash_ok:'➖ حُذفت غسلة',
+    no_free:'لا توجد غسلات مجانية', no_perm_del:'المسؤول لا يستطيع حذف الزبائن — تواصل مع المالك',
+    det_total_ttl:'📊 الإجمالي الكلي', det_day:'اليوم', det_week:'الأسبوع', det_month:'الشهر', det_year:'السنة',
+  },
+  en:{
+    sp_tag:'CAR WASH · LOYALTY SYSTEM', rl_owner:'Business Owner', rl_worker:'Worker', rl_cust:'Customer',
+    ol_ttl:'OWNER LOGIN', ol_sub:'Secret Password', ol_pw:'🔐 Password', enter:'Login', back:'← Back',
+    wl_ttl:'WORKER LOGIN', wl_sub:'Username + 4-digit PIN', wl_name:'👤 Worker Name', wl_pin:'🔢 PIN Code',
+    cl_ttl:'Customer Portal', cl_sub:'Enter your phone number to check your balance', cl_ph:'📱 Phone Number',
+    otab0:'➕ Customer', otab1:'👷 Worker', otab2:'👥 Customers', otab3:'🧹 Workers', otab4:'📊 Stats',
+    o_panel:'OWNER PANEL', logout:'Logout ↩',
+    ac_ttl:'Add New Customer', ac_btn:'➕ Add Customer', print_qr:'🖨️ Print QR Code',
+    how_ttl:'How does it work?',
+    how1:'1 · Add name + phone → QR Code is generated',
+    how2:'2 · Print QR and stick it inside the customer\'s car',
+    how3:'3 · Worker scans the code at each wash',
+    how4:'4 · Every 10 washes = 1 free wash 🎁',
+    how5:'5 · Customer sees balance by scanning or entering phone',
+    aw_ttl:'Add New Worker', aw_pin:'PIN Code (4 digits)', aw_role:'🎯 Worker Role',
+    aw_mgr:'⭐ Supervisor', aw_wrk:'🔧 Regular Worker', aw_btn:'➕ Add Worker',
+    custs_lbl:'Customers', workers_lbl:'Workers',
+    pd_today:'Today', pd_week:'This Week', pd_month:'This Month', pd_all:'All Time',
+    st_total:'Total Washes', st_free:'Free', st_custs:'Active Customers',
+    rank_ttl:'🏆 Worker Leaderboard', washes:'washes',
+    w_panel:'Worker Panel', mgr_role:'⭐ Supervisor', wrk_role:'🔧 Regular Worker',
+    online:'Online', offline:'Offline',
+    w_scan_ttl:'Scan Customer QR', w_scan_hint:'Tap to open camera and scan QR',
+    w_scan_sub:'Automatic · no extra taps', srch:'Search',
+    w_mgr_ttl:'Add Customer (Supervisor)', w_add_c:'➕ Add Customer',
+    confirm_wash:'✅ Record Wash', redeem:'🎁 Redeem Free Wash',
+    cancel:'Cancel', has_free:'Has a free wash!', can_use:'Can be redeemed now',
+    w_pu_ttl:'🚗 Pickup Requests',
+    qrs_ttl:'📷 SCAN QR CODE', qrs_hint:'Point camera at customer\'s QR Code', qrs_close:'✕ Close',
+    myqr_ttl:'QR CODE', myqr_close:'Close',
+    c_brand:'GLINT · CAR WASH', c_greet:'Welcome,',
+    cs_tot:'Total', cs_drp:'Drops', cs_fr:'Free',
+    c_qr_btn:'📱 Show My QR Code', c_exit:'Exit',
+    bkt_ttl:'Your Drops 💧', bkt_sub:'Every 10 = 1 free wash',
+    prog_free:'🎉 You earned a free wash!', prog_rem:' drops until free wash',
+    free_ttl:'You have a free wash!', free_sub:' free wash(es) ready 🎁',
+    pu_ttl:'🚗 Request Car Pickup', pu_sub:'Worker comes to your location (within 7 km)',
+    req_btn:'📍 Request Pickup from My Location',
+    pu_wait_ttl:'Waiting for worker...', pu_wait_sub:'Your location was sent', pu_cancel:'Cancel Request',
+    pu_acc_ttl:'Worker is on the way!',
+    pu_arr_ttl:'Worker arrived!', pu_arr_sub:'Taking your car to the station',
+    pu_del_ttl:'Your car is back!', pu_del_sub:'Your car has been cleaned and returned', new_req:'New Request',
+    c_hist_ttl:'Wash History', no_hist:'No history yet',
+    hist_wash:'Car Wash', hist_free:'Free Wash', hist_pickup:'Pickup & Delivery', hist_edit:'Adjustment',
+    map_btn:'🗺️ Map', accept_btn:'✅ Accept', accept_ok:'✅ Request accepted — go!',
+    no_worker:'⚠️ No worker available right now', loc_loading:'⏳ Detecting location...',
+    loc_sent:'📍 Pickup request sent!', loc_err:'❌ Could not access location', no_gps:'GPS not supported',
+    cancel_ok:'Request cancelled', offline_msg:'You are Offline', offline_hint:'Go online to receive requests',
+    no_requests:'No requests at the moment',
+    go_online:'🟢 You are now Online — requests will reach you',
+    go_offline:'⚫ You are Offline — no requests will be sent',
+    jf_acc_ttl:'Heading to Customer', jf_acc_sub:'Press "Arrived" when you reach the customer', jf_acc_btn:'📍 Arrived at Customer',
+    jf_arr_ttl:'Arrived at Customer', jf_arr_sub:'Press when heading to station', jf_arr_btn:'🏁 Heading to Station',
+    jf_sta_ttl:'Heading to Station', jf_sta_sub:'Start washing when you arrive', jf_sta_btn:'🚿 Started Washing',
+    jf_was_ttl:'Washing in Progress', jf_was_sub:'Press when done', jf_was_btn:'✅ Wash Complete',
+    jf_don_ttl:'Wash Complete!', jf_don_sub:'Deliver car back to customer', jf_don_btn:'🚗 Heading to Deliver',
+    jf_del_ttl:'Delivering Car', jf_del_sub:'Take car back to customer location', jf_del_btn:'✅ Delivered',
+    open_map:'🗺️ Open Map',
+    notif_arr:'📍 Customer notified of arrival', notif_sta:'🏎️ Heading to station',
+    notif_was:'🚿 Washing started', notif_don:'✅ Wash done! Now deliver',
+    notif_going:'🚗 Heading to deliver', notif_del:'🎉 Delivered! Customer notified',
+    cust_arr:'✅ Worker arrived at your location!', cust_del:'🎉 Your car is back!',
+    det_phone:'📞 Phone', det_edit_ttl:'✏️ Adjust Washes (Error Correction)',
+    add_wash:'➕ Add Wash', rem_wash:'➖ Remove Wash', det_drops:'💧 Drops', det_recent:'📋 Recent Activity',
+    del_cust:'🗑️ Delete Customer', del_worker:'🗑️ Delete Worker', close:'Close',
+    confirm_del_c:'Delete this customer?', confirm_del_w:'Delete this worker?',
+    del_ok:'🗑 Deleted', del_w_ok:'🗑 Worker deleted',
+    wash_ok:'✅ Wash recorded for ', free_ok:'🎁 Free wash redeemed for ',
+    congrats:'🎉 Congrats ', got_free:'! Earned a free wash!',
+    scan_nf:'❌ Code not found', found:'Found ', no_cam:'❌ Camera permission denied',
+    no_perm:'You don\'t have permission', err_name:'Enter name', err_phone:'Enter phone',
+    dup_phone:'This number is already registered', added_c:'✅ Added ', added_w:'✅ Added worker ',
+    err_wname:'Enter worker name', err_pin:'PIN must be 4 digits', dup_w:'Name already exists',
+    wrong_pass:'❌ Incorrect password', wrong_worker:'❌ Wrong name or PIN',
+    conn_err:'❌ Connection error', loading:'Loading...', add_wash_ok:'➕ Wash added', rem_wash_ok:'➖ Wash removed',
+    no_free:'No free washes available', no_perm_del:'Supervisor cannot delete customers — contact owner',
+    det_total_ttl:'📊 All-Time Total', det_day:'Today', det_week:'This Week', det_month:'This Month', det_year:'This Year',
+  }
+};
+const t = k => (TR[lang]||TR.ar)[k] || TR.ar[k] || k;
+
+function toggleLang(){
+  lang = lang==='ar'?'en':'ar';
+  localStorage.setItem('glint_lang',lang);
+  const r=document.getElementById('html-root');
+  r.lang=lang; r.dir=lang==='ar'?'rtl':'ltr';
+  document.getElementById('lang-btn').textContent=lang==='ar'?'🌐 EN':'🌐 عربي';
+  applyLang();
+}
+
+function applyLang(){
+  const ids={
+    'sp-tag':t('sp_tag'),'rl-owner':t('rl_owner'),'rl-worker':t('rl_worker'),'rl-cust':t('rl_cust'),
+    'ol-ttl':t('ol_ttl'),'ol-sub':t('ol_sub'),'ol-pw-lbl':t('ol_pw'),'ol-btn':t('enter'),'ol-back':t('back'),
+    'wl-ttl':t('wl_ttl'),'wl-sub':t('wl_sub'),'wl-name-lbl':t('wl_name'),'wl-pin-lbl':t('wl_pin'),'wl-btn':t('enter'),'wl-back':t('back'),
+    'cl-ttl':t('cl_ttl'),'cl-sub':t('cl_sub'),'cl-ph-lbl':t('cl_ph'),'cl-btn':t('enter'),'cl-back':t('back'),
+    'otab0':t('otab0'),'otab1':t('otab1'),'otab2':t('otab2'),'otab3':t('otab3'),'otab4':t('otab4'),
+    'o-panel-lbl':t('o_panel'),'o-logout-btn':t('logout'),
+    'ac-ttl':t('ac_ttl'),'ac-btn':t('ac_btn'),'print-btn':t('print_qr'),
+    'how-ttl':t('how_ttl'),'how1':t('how1'),'how2':t('how2'),'how3':t('how3'),'how4':t('how4'),'how5':t('how5'),
+    'aw-ttl':t('aw_ttl'),'aw-pin-lbl':t('aw_pin'),'aw-role-lbl':t('aw_role'),'aw-btn':t('aw_btn'),
+    'role-mgr':t('aw_mgr'),'role-wrk':t('aw_wrk'),
+    'custs-lbl':t('custs_lbl'),'workers-lbl':t('workers_lbl'),
+    'spb0':t('pd_today'),'spb1':t('pd_week'),'spb2':t('pd_month'),'spb3':t('pd_all'),
+    'st-lbl-total':t('st_total'),'st-lbl-free':t('st_free'),'st-lbl-custs':t('st_custs'),'rank-ttl':t('rank_ttl'),
+    'w-role-lbl':currentWorker?(currentWorker.role==='manager'?t('mgr_role'):t('wrk_role')):t('w_panel'),
+    'online-lbl':workerOnline?t('online'):t('offline'),
+    'w-logout-btn':t('logout'),'w-scan-ttl':t('w_scan_ttl'),'w-scan-hint':t('w_scan_hint'),'w-scan-sub':t('w_scan_sub'),
+    'w-srch-btn':t('srch'),'w-mgr-ttl':t('w_mgr_ttl'),'w-add-c-btn':t('w_add_c'),
+    'w-confirm-btn':t('confirm_wash'),'w-cancel-btn':t('cancel'),'w-has-free-ttl':t('has_free'),'w-has-free-sub':t('can_use'),
+    'w-redeem-btn':t('redeem'),'w-pu-ttl':t('w_pu_ttl'),
+    'qrs-ttl':t('qrs_ttl'),'qrs-hint':t('qrs_hint'),'qrs-close':t('qrs_close'),
+    'myqr-ttl':t('myqr_ttl'),'myqr-close':t('myqr_close'),
+    'c-brand':t('c_brand'),'c-greet':t('c_greet'),'cs-lbl-tot':t('cs_tot'),'cs-lbl-drp':t('cs_drp'),'cs-lbl-fr':t('cs_fr'),
+    'c-qr-btn':t('c_qr_btn'),'c-exit-btn':t('c_exit'),
+    'c-bkt-ttl':t('bkt_ttl'),'c-bkt-sub':t('bkt_sub'),
+    'c-free-ttl':t('free_ttl'),'c-pu-ttl':t('pu_ttl'),'c-pu-sub':t('pu_sub'),'c-hist-ttl':t('c_hist_ttl'),
+    'loading-txt':t('loading'),
+  };
+  Object.keys(ids).forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=ids[id]; });
+  const ph={'wsinp':t('w_scan_hint')};
+  Object.keys(ph).forEach(id=>{ const el=document.getElementById(id); if(el) el.placeholder=lang==='ar'?'أو رقم الزبون / هاتفه...':'Or customer ID / phone...'; });
+  // update pickup button
+  const pb=document.getElementById('c-req-btn');
+  if(pb) pb.textContent=t('req_btn');
+  // update map btn in job
+  const mb=document.getElementById('wj-map-btn');
+  if(mb) mb.textContent=t('open_map');
+  if(currentCustomer) renderCustDash(currentCustomer);
+  if(document.getElementById('scr-owner').classList.contains('on')){ renderCustList(); renderWorkerList(); renderStats(); }
+  if(currentWorker) rdb && rdb.ref('pickupRequests').once('value',s=>renderPickupList(s.val()||{}));
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+const uid  = ()=>'GL'+Math.random().toString(36).substr(2,7).toUpperCase();
+const wuid = ()=>'WK'+Math.random().toString(36).substr(2,5).toUpperCase();
+const ini  = n=>n.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
+const lvl  = tot=>tot>=100?'✦ '+(lang==='ar'?'بلاتيني':'Platinum'):tot>=50?'● '+(lang==='ar'?'ذهبي':'Gold'):tot>=20?'○ '+(lang==='ar'?'فضي':'Silver'):'· '+(lang==='ar'?'عضو جديد':'New Member');
+const today= ()=>new Date().toLocaleDateString('ar-SA');
+const nowt = ()=>new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function nameToEmail(n){
+  // حوّل الاسم لـ base64 url-safe ثم أضف domain
+  // يعمل مع العربي والإنجليزي
+  const safe = btoa(encodeURIComponent(n.trim().toLowerCase())).replace(/[^a-z0-9]/gi,'').slice(0,20) || 'worker';
+  return 'w'+safe+'@glint-staff.app';
+}
+
+let _toastT;
+function toast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show '+(type||'');
+  clearTimeout(_toastT);
+  _toastT=setTimeout(()=>el.className='toast',3400);
+  try{
+    const ac=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);
+    o.frequency.value=880;g.gain.setValueAtTime(.15,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.15);
+    o.start();o.stop(ac.currentTime+.15);
+  }catch(e){}
+}
+
+function show(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('scr-'+id).classList.add('on');
+}
+function showLoad(v){ document.getElementById('lov').classList.toggle('on',v); }
+
+function goLogin(r){
+  if(r==='owner') show('owner-login');
+  else if(r==='worker') show('worker-login');
+  else show('cust');
+}
+
+// ═══════════════════════════════════════════
+//  FIREBASE LOAD + BOOT
+// ═══════════════════════════════════════════
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);
+  });
+}
+
+// أظهر splash فوراً قبل أي شيء
+(function(){
+  const r=document.getElementById('html-root');
+  r.lang=lang; r.dir=lang==='ar'?'rtl':'ltr';
+  document.getElementById('lang-btn').textContent=lang==='ar'?'🌐 EN':'🌐 عربي';
+  // splash يظهر فوراً — الأزرار تشتغل حتى قبل Firebase
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('scr-splash').classList.add('on');
+})();
+
+async function boot(){
+  showLoad(true);
+  applyLang();
+  try{
+    await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+    firebase.initializeApp({
+      apiKey:'AIzaSyB-3VMi7aw7D8ISJW9CWS3EQX0OUgPJWDA',
+      authDomain:'glintloyalty.firebaseapp.com',
+      databaseURL:'https://glintloyalty-default-rtdb.firebaseio.com',
+      projectId:'glintloyalty',
+      storageBucket:'glintloyalty.firebasestorage.app',
+      messagingSenderId:'991009286629',
+      appId:'1:991009286629:web:efdddabea00cbecfb0a70c'
+    });
+    rdb   = firebase.database();
+    fauth = firebase.auth();
+    fauth.onAuthStateChanged(u=>{ currentFbUser=u; });
+    // Try to load data for QR link (needs auth)
+    const qrId = new URLSearchParams(location.search).get('c');
+    if(qrId){
+      // Anonymous sign-in to read data for QR link
+      await fauth.signInAnonymously().catch(()=>{});
+    }
+    initSync(qrId);
+    setTimeout(restoreWorkerSession, 1800);
+  }catch(e){
+    console.error('Boot error:',e);
+    showLoad(false);
+    toast(t('conn_err'),'err');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  SYNC
+// ═══════════════════════════════════════════
+function initSync(qrId){
+  showLoad(false); // أخفِ loading فوراً
+  if(!qrId){
+    // لا يوجد QR link — splash يبقى ظاهراً، الأزرار تشتغل
+  }
+  // استمع للزبائن
+  rdb.ref('glint/customers').on('value',snap=>{
+    db.customers = snap.val()||{};
+    if(qrId){
+      const idUp=qrId.toUpperCase();
+      const c=db.customers[idUp];
+      if(c){ currentCustomer=c; renderCustDash(c); show('cust-dash'); listenCustNotifs(c.id); qrId=null; }
+    }
+    if(currentCustomer){
+      const fresh=db.customers[currentCustomer.id];
+      if(fresh){ currentCustomer=fresh; renderCustDash(fresh); }
+    }
+    if(document.getElementById('scr-owner').classList.contains('on')){ renderCustList(); renderStats(); }
+  },err=>{ console.warn('DB read error:', err); });
+
+  // استمع للعمال
+  rdb.ref('glint/workers').on('value',snap=>{
+    db.workers = snap.val()||{};
+    if(document.getElementById('scr-owner').classList.contains('on')){ renderWorkerList(); renderStats(); }
+  },err=>{});
+
+  // استمع لطلبات الاستلام
+  rdb.ref('pickupRequests').on('value',snap=>{
+    const reqs=snap.val()||{};
+    if(currentWorker) renderPickupList(reqs);
+    if(currentCustomer) watchMyPickup(reqs);
+  });
+}
+
+function saveDB(){
+  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
+  const updates = {};
+  Object.values(db.customers).forEach(c=>{ updates['glint/customers/'+c.id]=c; });
+  Object.values(db.workers).forEach(w=>{ updates['glint/workers/'+w.id]=w; });
+  rdb.ref().update(updates);
+}
+
+function saveCust(id){
+  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
+  if(db.customers[id]) rdb.ref('glint/customers/'+id).set(db.customers[id]);
+}
+
+function saveWorker(id){
+  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
+  if(db.workers[id]) rdb.ref('glint/workers/'+id).set(db.workers[id]);
+}
+
+function deleteCustDB(id){
+  if(!currentFbUser) return;
+  rdb.ref('glint/customers/'+id).remove();
+}
+
+function deleteWorkerDB(id){
+  if(!currentFbUser) return;
+  rdb.ref('glint/workers/'+id).remove();
+}
+
+// حفظ زبون واحد فقط
+function saveCust(id){
+  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
+  if(db.customers[id]) rdb.ref('glint/customers/'+id).set(db.customers[id]);
+}
+
+// حفظ عامل واحد فقط
+function saveWorker(id){
+  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
+  if(db.workers[id]) rdb.ref('glint/workers/'+id).set(db.workers[id]);
+}
+
+// حذف زبون من Firebase مباشرة
+function deleteCustDB(id){
+  if(!currentFbUser) return;
+  rdb.ref('glint/customers/'+id).remove();
+}
+
+// حذف عامل من Firebase مباشرة
+function deleteWorkerDB(id){
+  if(!currentFbUser) return;
+  rdb.ref('glint/workers/'+id).remove();
+}
+
+// ═══════════════════════════════════════════
+//  OWNER AUTH (Firebase Email/Password)
+// ═══════════════════════════════════════════
+async function ownerLogin(){
+  const pw=document.getElementById('opw').value.trim();
+  document.getElementById('opw').value='';
+  const err=document.getElementById('olerr');
+  if(!pw){ err.textContent=t('wrong_pass'); return; }
+  err.textContent=''; showLoad(true);
+  try{
+    await fauth.signInWithEmailAndPassword(OWNER_EMAIL, pw);
+    showLoad(false);
+    renderCustList(); renderWorkerList(); renderStats();
+    show('owner');
+  }catch(e){
+    if(e.code==='auth/user-not-found'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'){
+      // أول مرة — إنشاء حساب المالك
+      try{
+        await fauth.createUserWithEmailAndPassword(OWNER_EMAIL, pw);
+        showLoad(false);
+        renderCustList(); renderWorkerList(); renderStats();
+        show('owner');
+      }catch(e2){
+        showLoad(false);
+        err.textContent=e2.code==='auth/weak-password'?'❌ كلمة المرور قصيرة جداً (٦ أحرف على الأقل)':t('wrong_pass');
+      }
+    }else if(e.code==='auth/wrong-password'||e.code==='auth/invalid-login-credentials'){
+      showLoad(false); err.textContent=t('wrong_pass');
+    }else{
+      showLoad(false); err.textContent='❌ '+e.message;
+    }
+  }
+}
+
+async function ownerLogout(){
+  await fauth.signOut().catch(()=>{});
+  currentFbUser=null;
+  show('splash');
+}
+
+// ═══════════════════════════════════════════
+//  OWNER TABS
+// ═══════════════════════════════════════════
+function otab(i){
+  document.querySelectorAll('.o-tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.o-pg').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===2) renderCustList();
+  if(i===3) renderWorkerList();
+  if(i===4) renderStats();
+}
+
+// ═══════════════════════════════════════════
+//  ADD CUSTOMER
+// ═══════════════════════════════════════════
+function addCustomer(){
+  const name=document.getElementById('new-cname').value.trim();
+  const phone=document.getElementById('new-cphone').value.trim().replace(/\D/g,'');
+  if(!name){toast(t('err_name'),'err');return;}
+  if(!phone){toast(t('err_phone'),'err');return;}
+  if(Object.values(db.customers).find(c=>c.phone===phone)){toast(t('dup_phone'),'err');return;}
+  const id=uid();
+  db.customers[id]={id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:Date.now()};
+  saveCust(id); lastAddedId=id;
+  makeQR('qr-out','qr-nm','qr-id-lbl',id,name,phone);
+  document.getElementById('qr-res').classList.add('on');
+  document.getElementById('new-cname').value='';
+  document.getElementById('new-cphone').value='';
+  toast(t('added_c')+name,'ok');
+}
+
+// ═══════════════════════════════════════════
+//  ADD WORKER (Firebase Auth secondary app)
+// ═══════════════════════════════════════════
+let _workerRole='manager';
+function selectRole(r){
+  _workerRole=r;
+  document.getElementById('role-mgr').className='btn '+(r==='manager'?'btn-g':'btn-dim');
+  document.getElementById('role-wrk').className='btn '+(r==='worker'?'btn-g':'btn-dim');
+}
+
+async function addWorker(){
+  const name=document.getElementById('new-wname').value.trim();
+  const pin=[0,1,2,3].map(i=>document.getElementById('wp'+i).value).join('');
+  if(!name){toast(t('err_wname'),'err');return;}
+  if(pin.length!==4||!/^\d{4}$/.test(pin)){toast(t('err_pin'),'err');return;}
+  if(Object.values(db.workers).find(w=>w.name.toLowerCase()===name.toLowerCase())){toast(t('dup_w'),'err');return;}
+  showLoad(true);
+  const pinHash=await sha256('glint'+pin); // salted hash — consistent across Arabic/English
+  const wEmail=nameToEmail(name);
+  try{
+    // Create worker Firebase account using secondary app (keeps owner signed in)
+    const sec=firebase.initializeApp(firebase.app().options,'sec-'+Date.now());
+    const secAuth=sec.auth();
+    // Firebase تشترط 6+ أحرف — نضيف suffix ثابت للـ PIN
+    const wPass = 'GL'+pin+'st'; // e.g. GL1234st = 8 chars
+    await secAuth.createUserWithEmailAndPassword(wEmail, wPass).catch(e=>{
+      if(e.code!=='auth/email-already-in-use') throw e;
+    });
+    await secAuth.signOut();
+    await sec.delete();
+  }catch(e){
+    console.warn('Worker Firebase account:',e.code);
+  }
+  const id=wuid();
+  db.workers[id]={id,name,pinHash,role:_workerRole,online:false,totalScans:0,history:[],addedAt:Date.now()};
+  saveWorker(id);
+  showLoad(false);
+  document.getElementById('new-wname').value='';
+  [0,1,2,3].forEach(i=>document.getElementById('wp'+i).value='');
+  const el=document.getElementById('worker-added');
+  el.style.display='block';
+  el.textContent=`✅ ${name} · ${_workerRole==='manager'?t('aw_mgr'):t('aw_wrk')} · ${id}`;
+  setTimeout(()=>el.style.display='none',5000);
+  toast(t('added_w')+name,'ok');
+}
+function wpinMove(i){ if(document.getElementById('wp'+i).value && i<3) document.getElementById('wp'+(i+1)).focus(); }
+
+// ═══════════════════════════════════════════
+//  DELETE
+// ═══════════════════════════════════════════
+function deleteCustomer(id){
+  const c=db.customers[id];
+  if(!c||!confirm(t('confirm_del_c')+' '+c.name+'?'))return;
+  delete db.customers[id]; deleteCustDB(id); renderCustList(); closeDetail(); toast(t('del_ok'),'err');
+}
+function deleteWorker(id){
+  const w=db.workers[id];
+  if(!w||!confirm(t('confirm_del_w')+' '+w.name+'?'))return;
+  delete db.workers[id]; deleteWorkerDB(id); renderWorkerList(); closeDetail(); toast(t('del_w_ok'),'err');
+}
+
+async function resetWorkerPIN(id){
+  const w=db.workers[id]; if(!w)return;
+  const pin=prompt(lang==='ar'?'أدخل الرقم السري الجديد (4 أرقام) لـ '+w.name:'Enter new 4-digit PIN for '+w.name);
+  if(!pin||!/^\d{4}$/.test(pin)){ toast(t('err_pin'),'err'); return; }
+  showLoad(true);
+  const pinHash=await sha256('glint'+pin);
+  const wEmail=nameToEmail(w.name);
+  const wPass='GL'+pin+'st';
+  // حدّث Firebase Auth
+  try{
+    const sec=firebase.initializeApp(firebase.app().options,'reset-'+Date.now());
+    const secAuth=sec.auth();
+    // حاول تسجيل دخول بالقديم ثم حذف وإعادة إنشاء
+    await secAuth.createUserWithEmailAndPassword(wEmail,wPass).catch(async e=>{
+      if(e.code==='auth/email-already-in-use'){
+        // حدّث كلمة المرور عبر إعادة إنشاء الحساب
+        // نستخدم signIn ثم updatePassword
+        // لأننا لا نعرف كلمة المرور القديمة، نحذف ونعيد إنشاء
+        // Firebase Admin SDK مطلوب لحذف المستخدم — هنا نكتفي بتحديث الـ hash
+      }
+    });
+    await secAuth.signOut(); await sec.delete();
+  }catch(e){ console.warn('reset auth:',e.code); }
+  // حدّث الـ hash في DB على أي حال
+  db.workers[id].pinHash=pinHash;
+  saveWorker(id);
+  showLoad(false);
+  toast((lang==='ar'?'✅ تم تحديث الرقم السري لـ ':'✅ PIN updated for ')+w.name,'ok');
+  openWorkerDetail(id);
+}
+
+// ═══════════════════════════════════════════
+//  EDIT WASHES
+// ═══════════════════════════════════════════
+function editWashes(id,delta){
+  const c=db.customers[id]; if(!c)return;
+  db.customers[id].drops=Math.max(0,(c.drops||0)+delta);
+  db.customers[id].totalWashes=Math.max(0,(c.totalWashes||0)+delta);
+  db.customers[id].history=[{type:'edit',delta,by:'owner',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
+  saveCust(id); toast(delta>0?t('add_wash_ok'):t('rem_wash_ok'),'ok'); openCustDetail(id);
+}
+
+// ═══════════════════════════════════════════
+//  RENDER LISTS
+// ═══════════════════════════════════════════
+function renderCustList(){
+  const q=(document.getElementById('csrch')?.value||'').toLowerCase();
+  const all=Object.values(db.customers).filter(c=>!q||c.name.toLowerCase().includes(q)||(c.phone||'').includes(q)||c.id.toLowerCase().includes(q));
+  document.getElementById('cc').textContent=Object.keys(db.customers).length;
+  const el=document.getElementById('clist');
+  if(!all.length){el.innerHTML=`<div class="empty"><div class="e-ico">👥</div><div class="e-txt">${t('custs_lbl')}</div></div>`;return;}
+  el.innerHTML=all.slice().reverse().map(c=>{
+    const cy=(c.drops||0)%10;
+    const dots=Array.from({length:10},(_,i)=>`<div class="dot-s ${i<cy?'on':''}"></div>`).join('');
+    return `<div class="li-row" onclick="openCustDetail('${c.id}')">
+      <div class="li-av li-av-c">${ini(c.name)}</div>
+      <div class="li-info"><div class="li-nm">${c.name}</div><div class="li-mt">${c.phone||''} · ${c.totalWashes||0} ${t('washes')}</div><div class="li-mini">${dots}</div></div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+        <span class="bdg">${cy}/10 💧</span>${(c.freeWashes||0)>0?`<span class="bdg free">🎁 ${c.freeWashes}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderWorkerList(){
+  const all=Object.values(db.workers);
+  document.getElementById('wc').textContent=all.length;
+  const el=document.getElementById('wlist');
+  if(!all.length){el.innerHTML=`<div class="empty"><div class="e-ico">👷</div><div class="e-txt">${t('workers_lbl')}</div></div>`;return;}
+  el.innerHTML=all.map(w=>`<div class="li-row" onclick="openWorkerDetail('${w.id}')">
+    <div class="li-av li-av-w">${ini(w.name)}</div>
+    <div class="li-info">
+      <div class="li-nm">${w.name} <span class="odot ${w.online?'on':''}"></span></div>
+      <div class="li-mt">${w.id} · ${w.totalScans||0} ${t('washes')}</div>
+      <div style="margin-top:5px"><span class="chip ${w.role==='manager'?'chip-mgr':'chip-wrk'}">${w.role==='manager'?t('aw_mgr'):t('aw_wrk')}</span></div>
+    </div>
+    <div style="font-size:11px;color:${w.online?'var(--ok)':'var(--mu)'}">${w.online?t('online'):t('offline')}</div>
+  </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+//  DETAIL MODALS
+// ═══════════════════════════════════════════
+function openCustDetail(id){
+  const c=db.customers[id]; if(!c)return;
+  const cy=(c.drops||0)%10;
+  const hist=(c.history||[]).slice(0,20).map(h=>`<div class="hist-item">
+    <div class="hist-ic">${h.type==='wash'?'💧':h.type==='free'?'🎁':h.type==='pickup'?'🚗':'✏️'}</div>
+    <div><div class="hist-mn">${h.type==='wash'?t('hist_wash'):h.type==='free'?t('hist_free'):h.type==='pickup'?t('hist_pickup'):t('hist_edit')+(h.delta>0?' (+'+h.delta+')':' ('+h.delta+')')}</div>
+    <div class="hist-dt">${h.date||''}${h.time?' · '+h.time:''}${h.worker?' · '+h.worker:''}</div></div>
+    <div class="hist-dp">+1 💧</div></div>`).join('')||`<div style="color:var(--mu);text-align:center;padding:14px;font-size:12px">${t('no_hist')}</div>`;
+  document.getElementById('detail-inner').innerHTML=`
+    <div class="det-hdr"><div class="det-av det-av-c">${ini(c.name)}</div>
+      <div><div class="det-nm">${c.name}</div><div class="det-id">${c.id}</div>
+        <div style="font-size:11px;color:var(--g);margin-top:4px;font-weight:700">${lvl(c.totalWashes||0)}</div></div></div>
+    <div class="det-grid">
+      <div class="det-box"><div class="det-val">${c.totalWashes||0}</div><div class="det-lbl">${t('st_total')}</div></div>
+      <div class="det-box"><div class="det-val">${cy}/10</div><div class="det-lbl">${t('cs_drp')}</div></div>
+      <div class="det-box"><div class="det-val">${c.freeWashes||0}</div><div class="det-lbl">${t('cs_fr')}</div></div>
+    </div>
+    <div style="background:var(--s3);border:1px solid var(--br2);border-radius:13px;padding:13px;margin-bottom:8px">
+      <div style="font-size:10px;color:var(--mu);margin-bottom:5px">${t('det_phone')}</div>
+      <div style="font-size:15px;font-weight:700">${c.phone||'—'}</div>
+    </div>
+    <div class="det-sec-ttl">${t('det_edit_ttl')}</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-ok" style="flex:1;padding:12px" onclick="editWashes('${c.id}',1)">${t('add_wash')}</button>
+      <button class="btn btn-er" style="flex:1;padding:12px" onclick="editWashes('${c.id}',-1)">${t('rem_wash')}</button>
+    </div>
+    <div class="det-sec-ttl">${t('det_drops')}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
+      ${Array.from({length:10},(_,i)=>`<div style="width:28px;height:28px;border-radius:50%;background:${i<cy?'var(--g3)':'var(--s3)'};border:1.5px solid ${i<cy?'var(--g)':'var(--br2)'};display:flex;align-items:center;justify-content:center;font-size:13px">${i<cy?'💧':''}</div>`).join('')}
+    </div>
+    <div class="det-sec-ttl">${t('det_recent')}</div>
+    ${hist}
+    <button class="btn btn-er btn-full" style="margin-top:14px" onclick="deleteCustomer('${c.id}')">${t('del_cust')}</button>
+    <button class="btn btn-dim btn-full" style="margin-top:6px" onclick="closeDetail()">${t('close')}</button>`;
+  document.getElementById('detail-modal').classList.add('on');
+}
+
+function openWorkerDetail(id){
+  const w=db.workers[id]; if(!w)return;
+  const dn=new Date(); dn.setHours(0,0,0,0);
+  const wkS=new Date(dn); wkS.setDate(dn.getDate()-dn.getDay());
+  const moS=new Date(dn.getFullYear(),dn.getMonth(),1);
+  const yrS=new Date(dn.getFullYear(),0,1);
+  let day=0,week=0,month=0,year=0,all=0;
+  Object.values(db.customers).forEach(c=>(c.history||[]).forEach(h=>{
+    if(h.worker!==w.name||(h.type!=='wash'&&h.type!=='free'&&h.type!=='pickup'))return;
+    all++;const d=new Date(h.ts||0);
+    if(d>=dn)day++;if(d>=wkS)week++;if(d>=moS)month++;if(d>=yrS)year++;
+  }));
+  document.getElementById('detail-inner').innerHTML=`
+    <div class="det-hdr"><div class="det-av det-av-w">${ini(w.name)}</div>
+      <div><div class="det-nm">${w.name} <span class="odot ${w.online?'on':''}"></span></div>
+        <div class="det-id">${w.id}</div>
+        <div style="margin-top:5px"><span class="chip ${w.role==='manager'?'chip-mgr':'chip-wrk'}">${w.role==='manager'?t('aw_mgr'):t('aw_wrk')}</span></div></div></div>
+    <div class="det-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="det-box"><div class="det-val">${day}</div><div class="det-lbl">${t('det_day')}</div></div>
+      <div class="det-box"><div class="det-val">${week}</div><div class="det-lbl">${t('det_week')}</div></div>
+      <div class="det-box"><div class="det-val">${month}</div><div class="det-lbl">${t('det_month')}</div></div>
+      <div class="det-box"><div class="det-val">${year}</div><div class="det-lbl">${t('det_year')}</div></div>
+    </div>
+    <div style="background:var(--s3);border:1px solid var(--br);border-radius:13px;padding:14px;text-align:center;margin-bottom:14px">
+      <div style="font-size:10px;color:var(--mu);margin-bottom:6px">${t('det_total_ttl')}</div>
+      <div style="font-size:28px;font-weight:900;color:var(--g)">${all} ${t('washes')}</div>
+    </div>
+    <button class="btn btn-or btn-full" onclick="resetWorkerPIN('${w.id}')" style="background:#431407;border:1px solid #c2410c;color:#fdba74">${lang==='ar'?'🔑 تغيير الرقم السري':'🔑 Reset PIN'}</button>
+    <button class="btn btn-er btn-full" style="margin-top:6px" onclick="deleteWorker('${w.id}')">${t('del_worker')}</button>
+    <button class="btn btn-dim btn-full" style="margin-top:6px" onclick="closeDetail()">${t('close')}</button>`;
+  document.getElementById('detail-modal').classList.add('on');
+}
+
+function closeDetail(){ document.getElementById('detail-modal').classList.remove('on'); }
+
+// ═══════════════════════════════════════════
+//  QR
+// ═══════════════════════════════════════════
+function getCustURL(id){ return location.href.split('?')[0]+'?c='+id; }
+function makeQR(outId,nmId,idId,id,name,phone){
+  const el=document.getElementById(outId); if(!el)return;
+  el.innerHTML='';
+  new QRCode(el,{text:getCustURL(id),width:180,height:180,colorDark:'#0a0a0a',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});
+  if(nmId) document.getElementById(nmId).textContent=name;
+  if(idId) document.getElementById(idId).textContent=id;
+}
+function printQR(){
+  const c=db.customers[lastAddedId]; if(!c)return;
+  const pz=document.getElementById('pz-qr'); pz.innerHTML='';
+  new QRCode(pz,{text:getCustURL(c.id),width:220,height:220,colorDark:'#0a0a0a',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('pz-nm').textContent=c.name;
+  document.getElementById('pz-id').textContent=c.id;
+  document.getElementById('pz-ph').textContent=c.phone||'';
+  const z=document.getElementById('pzone');
+  z.style.cssText='display:flex;align-items:center;justify-content:center;position:fixed;inset:0';
+  setTimeout(()=>{window.print();z.style.display='none';},500);
+}
+
+// ═══════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════
+function setPeriod(p){
+  statPeriod=p;
+  ['today','week','month','all'].forEach((v,i)=>document.getElementById('spb'+i).classList.toggle('on',v===p));
+  renderStats();
+}
+
+function renderStats(){
+  const dn=new Date(); dn.setHours(0,0,0,0);
+  const wkS=new Date(dn); wkS.setDate(dn.getDate()-dn.getDay());
+  const moS=new Date(dn.getFullYear(),dn.getMonth(),1);
+  const filt=h=>{
+    if(statPeriod==='all')return true;
+    const ts=h.ts||0;
+    if(statPeriod==='today')return ts>=dn.getTime();
+    if(statPeriod==='week')return ts>=wkS.getTime();
+    if(statPeriod==='month')return ts>=moS.getTime();
+    return true;
+  };
+  let total=0,free=0; const custSet=new Set(); const wMap={};
+  Object.values(db.customers).forEach(c=>(c.history||[]).forEach(h=>{
+    if(!filt(h))return;
+    if(h.type==='wash'||h.type==='pickup'){total++;custSet.add(c.id);if(h.worker)wMap[h.worker]=(wMap[h.worker]||0)+1;}
+    if(h.type==='free'){free++;custSet.add(c.id);}
+  }));
+  document.getElementById('st-total').textContent=total;
+  document.getElementById('st-free').textContent=free;
+  document.getElementById('st-custs').textContent=custSet.size;
+  const pdLbl={today:t('pd_today'),week:t('pd_week'),month:t('pd_month'),all:t('pd_all')};
+  document.getElementById('st-period-lbl').textContent=pdLbl[statPeriod];
+  const sorted=Object.values(db.workers).map(w=>({...w,cnt:wMap[w.name]||0})).sort((a,b)=>b.cnt-a.cnt);
+  const max=sorted[0]?.cnt||1;
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('worker-stats-list').innerHTML=!sorted.length
+    ?`<div class="empty"><div class="e-ico">👷</div><div class="e-txt">${t('workers_lbl')}</div></div>`
+    :sorted.map((w,i)=>`<div class="wsc">
+        <div class="wsc-rank ${i===0?'gold':''}">${medals[i]||i+1}</div>
+        <div class="wsc-info">
+          <div class="wsc-nm">${w.name} <span class="chip ${w.role==='manager'?'chip-mgr':'chip-wrk'}">${w.role==='manager'?t('aw_mgr'):t('aw_wrk')}</span></div>
+          <div class="wsc-sub">${w.id} · ${w.online?`<span style="color:var(--ok)">${t('online')}</span>`:t('offline')}</div>
+          <div class="wsc-bar-w"><div class="wsc-bar" style="width:${Math.round(w.cnt/max*100)}%"></div></div>
+        </div>
+        <div class="wsc-cnt"><div class="wsc-n">${w.cnt}</div><div class="wsc-l">${t('washes')}</div></div>
+      </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+//  SESSION RESTORE
+// ═══════════════════════════════════════════
+function restoreWorkerSession(){
+  const sess = getWorkerSession();
+  if(!sess) return;
+  // ابحث عن العامل في DB
+  const w = Object.values(db.workers).find(x => x.id === sess.id);
+  if(!w){ clearWorkerSession(); return; }
+  // استعد الجلسة
+  currentWorker = w;
+  workerOnline  = sess.online || false;
+  document.getElementById('w-name-ttl').textContent = (lang==='ar'?'أهلاً ':'Hello, ') + w.name;
+  document.getElementById('w-role-lbl').textContent = w.role==='manager'?t('mgr_role'):t('wrk_role');
+  document.getElementById('w-mgr-section').style.display = w.role==='manager'?'block':'none';
+  const tog = document.getElementById('online-tog');
+  tog.className = 'tog '+(workerOnline?'on':'off');
+  document.getElementById('online-dot').className = 'odot '+(workerOnline?'on':'');
+  document.getElementById('online-lbl').textContent = workerOnline?t('online'):t('offline');
+  show('worker');
+  listenPickups();
+  requestNotifPermission();
+  // إذا كان أونلاين، تأكد Firebase يعرف
+  if(workerOnline) setWorkerOnline(true);
+  toast((lang==='ar'?'👋 مرحباً بعودتك ':'👋 Welcome back ')+w.name);
+}
+
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS (Web Push + Sound)
+// ═══════════════════════════════════════════
+let notifGranted = false;
+let fcmMessaging = null;
+
+async function requestNotifPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'denied') return;
+
+  // اطلب إذن الإشعارات
+  const perm = await Notification.requestPermission();
+  notifGranted = perm === 'granted';
+  if(!notifGranted) return;
+
+  try{
+    // سجّل Service Worker
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    await navigator.serviceWorker.ready;
+
+    // احصل على FCM token
+    fcmMessaging = firebase.messaging();
+    fcmToken = await fcmMessaging.getToken({
+      vapidKey: 'BNRwtvZQ_RJy5otWDHipfqjkDIeK_GfWnY7_Uh_naeCDn5UrE9umGuhebHb7LheLK2FwgNAJDvrVXOBidxs2CR4',
+      serviceWorkerRegistration: reg
+    });
+
+    if(fcmToken && currentWorker){
+      // احفظ الـ token مع بيانات العامل في Firebase
+      rdb.ref('glint/workers/' + currentWorker.id + '/fcmToken').set(fcmToken);
+      rdb.ref('glint/workers/' + currentWorker.id + '/fcmUpdated').set(Date.now());
+    }
+
+    // استقبل الإشعارات وهو في الـ foreground
+    fcmMessaging.onMessage(payload => {
+      const title = payload.notification?.title || 'GLINT';
+      const body  = payload.notification?.body  || '';
+      sendWorkerNotif(title, body);
+    });
+
+  }catch(e){
+    console.warn('FCM setup:', e.message);
+    // الإشعارات العادية تشتغل حتى بدون FCM
+  }
+}
+
+function playAlertSound(){
+  try{
+    const ac = new(window.AudioContext||window.webkitAudioContext)();
+    // صوت تنبيه قوي ومتكرر
+    const beep = (freq, start, duration) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.frequency.value = freq;
+      o.type = 'sine';
+      g.gain.setValueAtTime(0, ac.currentTime+start);
+      g.gain.linearRampToValueAtTime(0.6, ac.currentTime+start+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+start+duration);
+      o.start(ac.currentTime+start);
+      o.stop(ac.currentTime+start+duration+0.05);
+    };
+    // 3 نغمات
+    beep(880, 0,    0.25);
+    beep(660, 0.3,  0.25);
+    beep(880, 0.6,  0.25);
+    beep(1100,0.9,  0.4);
+  }catch(e){}
+}
+
+function sendWorkerNotif(title, body){
+  // صوت دائماً
+  playAlertSound();
+  // إشعار النظام إذا مسموح
+  if(notifGranted && document.hidden){
+    try{
+      const n = new Notification(title, {
+        body,
+        icon: '💧',
+        badge: '💧',
+        vibrate: [300, 100, 300, 100, 300],
+        requireInteraction: true,
+        tag: 'glint-pickup'
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+    }catch(e){}
+  }
+  // toast مرئي دائماً
+  toast('🔔 '+title+' — '+body, 'yay');
+}
+
+// ═══════════════════════════════════════════
+//  WORKER AUTH
+// ═══════════════════════════════════════════
+function pinMove(i){ if(document.getElementById('p'+i).value&&i<3) document.getElementById('p'+(i+1)).focus(); }
+
+async function workerLogin(){
+  const name=document.getElementById('wname-inp').value.trim();
+  const pin=[0,1,2,3].map(i=>document.getElementById('p'+i).value).join('');
+  const err=document.getElementById('wlerr');
+  if(!name||pin.length!==4){err.textContent=t('wrong_worker');return;}
+  err.textContent=''; showLoad(true);
+  const wEmail=nameToEmail(name);
+  const wPass='GL'+pin+'st';
+  try{
+    await fauth.signInWithEmailAndPassword(wEmail, wPass);
+  }catch(e){
+    showLoad(false); err.textContent=t('wrong_worker'); return;
+  }
+  const pinHash=await sha256('glint'+pin);
+  const w=Object.values(db.workers).find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.pinHash===pinHash);
+  if(w){
+    showLoad(false); currentWorker=w; err.textContent='';
+    document.getElementById('wname-inp').value='';
+    [0,1,2,3].forEach(i=>document.getElementById('p'+i).value='');
+    document.getElementById('w-name-ttl').textContent=lang==='ar'?'أهلاً '+w.name:'Hello, '+w.name;
+    document.getElementById('w-role-lbl').textContent=w.role==='manager'?t('mgr_role'):t('wrk_role');
+    document.getElementById('w-mgr-section').style.display=w.role==='manager'?'block':'none';
+    // احفظ الجلسة في localStorage
+    saveWorkerSession(w, false);
+    // طلب إذن الإشعارات
+    requestNotifPermission();
+    show('worker'); listenPickups();
+  }else{
+    showLoad(false); await fauth.signOut().catch(()=>{}); err.textContent=t('wrong_worker');
+  }
+}
+
+async function workerLogout(){
+  if(currentWorker) setWorkerOnline(false);
+  clearWorkerSession();
+  // احذف FCM token من Firebase عند الخروج
+  if(currentWorker && fcmToken){
+    rdb.ref('glint/workers/'+currentWorker.id+'/fcmToken').remove().catch(()=>{});
+    rdb.ref('glint/workers/'+currentWorker.id+'/online').set(false).catch(()=>{});
+  }
+  currentWorker=null; workerOnline=false; activeJob=null; fcmToken=null;
+  await fauth.signOut().catch(()=>{}); currentFbUser=null;
+  document.getElementById('online-tog').className='tog off';
+  document.getElementById('online-dot').className='odot';
+  document.getElementById('online-lbl').textContent=t('offline');
+  show('splash');
+}
+
+// ═══════════════════════════════════════════
+//  WORKER ONLINE
+// ═══════════════════════════════════════════
+function toggleOnline(){
+  if(!currentWorker)return;
+  workerOnline=!workerOnline;
+  setWorkerOnline(workerOnline);
+  saveWorkerSession(currentWorker, workerOnline); // احفظ الحالة
+  const tog=document.getElementById('online-tog');
+  tog.className='tog '+(workerOnline?'on':'off');
+  document.getElementById('online-dot').className='odot '+(workerOnline?'on':'');
+  document.getElementById('online-lbl').textContent=workerOnline?t('online'):t('offline');
+  toast(workerOnline?t('go_online'):t('go_offline'));
+  rdb.ref('pickupRequests').once('value',s=>renderPickupList(s.val()||{}));
+}
+function setWorkerOnline(v){
+  if(!currentWorker)return;
+  const updates = { online: v };
+  if(v && fcmToken) updates.fcmToken = fcmToken; // حدّث الـ token دائماً
+  rdb.ref('glint/workers/'+currentWorker.id).update(updates);
+}
+
+// ═══════════════════════════════════════════
+//  QR SCANNER
+// ═══════════════════════════════════════════
+let html5QrCode = null;
+
+async function openQRScanner(){
+  const statusEl = document.getElementById('qrs-status');
+  document.getElementById('qrscan-modal').classList.add('on');
+  if(statusEl) statusEl.textContent = lang==='ar' ? 'جاري تشغيل الكاميرا...' : 'Starting camera...';
+
+  // أوقف أي scanner سابق
+  if(html5QrCode){
+    try{ await html5QrCode.stop(); } catch(e){}
+    html5QrCode = null;
+  }
+
+  try{
+    html5QrCode = new Html5Qrcode('qr-reader');
+
+    const config = {
+      fps: 10,                    // 10 frames/sec — كافٍ وموفّر للبطارية
+      qrbox: { width:250, height:250 }, // منطقة المسح
+      aspectRatio: 1.0,
+      rememberLastUsedCamera: true,
+      showTorchButtonIfSupported: true, // زر الفلاش إذا متوفر
+    };
+
+    await html5QrCode.start(
+      { facingMode: 'environment' }, // الكاميرا الخلفية
+      config,
+      (decodedText) => {
+        // تم قراءة الكود بنجاح
+        const m = decodedText.match(/[?&]c=([A-Z0-9]+)/i);
+        const val = m ? m[1].toUpperCase() : decodedText.trim().toUpperCase();
+        closeQRScanner();
+        wProcessScan(val);
+      },
+      (errorMsg) => {
+        // أخطاء عادية بين frames — نتجاهلها
+      }
+    );
+
+    if(statusEl) statusEl.textContent = lang==='ar' ? 'وجّه الكاميرا نحو الكود' : 'Point camera at QR code';
+
+  }catch(err){
+    console.error('QR Scanner error:', err);
+    closeQRScanner();
+    // رسالة خطأ واضحة حسب نوع المشكلة
+    if(String(err).includes('permission') || String(err).includes('Permission') || String(err).includes('NotAllowed')){
+      toast(lang==='ar'
+        ? '❌ يرجى السماح بالوصول للكاميرا من إعدادات المتصفح'
+        : '❌ Please allow camera access in browser settings', 'err');
+    } else if(String(err).includes('NotFound') || String(err).includes('DevicesNotFound')){
+      toast(lang==='ar' ? '❌ لا توجد كاميرا في هذا الجهاز' : '❌ No camera found', 'err');
+    } else {
+      toast(t('no_cam'), 'err');
+    }
+  }
+}
+
+async function closeQRScanner(){
+  if(html5QrCode){
+    try{
+      const state = html5QrCode.getState();
+      // 2 = SCANNING, 3 = PAUSED
+      if(state === 2 || state === 3){
+        await html5QrCode.stop();
+      }
+    }catch(e){ console.warn('stop scanner:', e); }
+    html5QrCode = null;
+  }
+  document.getElementById('qrscan-modal').classList.remove('on');
+}
+
+// ═══════════════════════════════════════════
+//  WORKER SCAN
+// ═══════════════════════════════════════════
+function wManualScan(){
+  let val=document.getElementById('wsinp').value.trim().toUpperCase();
+  document.getElementById('wsinp').value='';
+  if(!val){toast(t('err_name'),'err');return;}
+  const byPhone=Object.values(db.customers).find(c=>(c.phone||'').replace(/\D/g,'')===val.replace(/\D/g,''));
+  if(byPhone){wProcessScan(byPhone.id);return;}
+  const m=val.match(/[?&]C=([A-Z0-9]+)/i);
+  wProcessScan(m?m[1]:val);
+}
+
+function wProcessScan(id){
+  const c=db.customers[id];
+  if(!c){toast(t('scan_nf'),'err');return;}
+  pending=c;
+  const cy=(c.drops||0)%10;
+  document.getElementById('wsf-av').textContent=ini(c.name);
+  document.getElementById('wsf-nm').textContent=c.name;
+  document.getElementById('wsf-sb').textContent=`${cy}/10 · ${t('st_total')}: ${c.totalWashes||0}`;
+  document.getElementById('wsf-dots').innerHTML=Array.from({length:10},(_,i)=>`<div class="dot-lg ${i<cy?'on':''}">${i<cy?'💧':''}</div>`).join('');
+  document.getElementById('wsf-free-wrap').style.display=(c.freeWashes||0)>0?'block':'none';
+  document.getElementById('wsf').style.display='block';
+  toast(t('found')+c.name+' 👍','ok');
+}
+
+function confirmWash(){
+  if(!pending)return;
+  const c=db.customers[pending.id]; if(!c)return;
+  const before=Math.floor((c.drops||0)/10);
+  db.customers[c.id].drops=(c.drops||0)+1;
+  db.customers[c.id].totalWashes=(c.totalWashes||0)+1;
+  const gotFree=Math.floor(db.customers[c.id].drops/10)>before;
+  if(gotFree){ db.customers[c.id].freeWashes=(c.freeWashes||0)+1; toast(t('congrats')+c.name+t('got_free'),'yay'); }
+  else toast(t('wash_ok')+c.name,'ok');
+  db.customers[c.id].history=[{type:'wash',worker:currentWorker?.name||'',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
+  const wi=db.workers[currentWorker?.id];
+  if(wi){ db.workers[currentWorker.id].totalScans=(wi.totalScans||0)+1; saveWorker(currentWorker.id); }
+  saveCust(c.id); cancelScan();
+}
+
+function redeemFree(){
+  if(!pending)return;
+  const c=db.customers[pending.id];
+  if(!c||(c.freeWashes||0)<=0){toast(t('no_free'),'err');return;}
+  db.customers[c.id].freeWashes--;
+  db.customers[c.id].totalWashes=(c.totalWashes||0)+1;
+  db.customers[c.id].history=[{type:'free',worker:currentWorker?.name||'',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
+  saveCust(c.id); cancelScan(); toast(t('free_ok')+pending.name,'yay');
+}
+
+function cancelScan(){ pending=null; document.getElementById('wsf').style.display='none'; }
+
+// ═══════════════════════════════════════════
+//  WORKER: ADD CUSTOMER (manager)
+// ═══════════════════════════════════════════
+function wAddCustomer(){
+  if(!currentWorker||currentWorker.role!=='manager'){toast(t('no_perm'),'err');return;}
+  const name=document.getElementById('w-new-cname').value.trim();
+  const phone=document.getElementById('w-new-cphone').value.trim().replace(/\D/g,'');
+  if(!name||!phone){toast(t('err_name')+' / '+t('err_phone'),'err');return;}
+  if(Object.values(db.customers).find(c=>c.phone===phone)){toast(t('dup_phone'),'err');return;}
+  const id=uid();
+  db.customers[id]={id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:Date.now()};
+  saveCust(id);
+  document.getElementById('w-new-cname').value='';
+  document.getElementById('w-new-cphone').value='';
+  const out=document.getElementById('w-qr-out'); out.innerHTML='';
+  new QRCode(out,{text:getCustURL(id),width:160,height:160,colorDark:'#0a0a0a',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('w-qr-nm').textContent=name;
+  document.getElementById('w-qr-res').classList.add('on');
+  toast(t('added_c')+name,'ok');
+}
+
+// ═══════════════════════════════════════════
+//  PICKUP REQUESTS
+// ═══════════════════════════════════════════
+function listenPickups(){ rdb.ref('pickupRequests').on('value',s=>renderPickupList(s.val()||{})); }
+
+let _lastReqCount = 0; // لكشف الطلبات الجديدة
+
+function renderPickupList(reqs){
+  const list=document.getElementById('pickup-list'); if(!list)return;
+
+  // إذا العامل عنده job نشط، اخفِ القائمة
+  if(activeJob){list.innerHTML='';return;}
+
+  if(!workerOnline){
+    list.innerHTML=`<div class="empty"><div class="e-ico">⚫</div><div class="e-txt">${t('offline_msg')}<br>${t('offline_hint')}</div></div>`;
+    return;
+  }
+
+  // فلتر الطلبات:
+  // 1. status = 'waiting' فقط (لم يقبلها أحد)
+  // 2. لا يوجد workerId مخصص لها (أو مخصصة لي)
+  const available = Object.values(reqs).filter(r =>
+    r.status === 'waiting' && !r.workerId
+  );
+
+  // كشف طلب جديد وصل — أرسل إشعار
+  if(available.length > _lastReqCount && _lastReqCount >= 0){
+    const newest = available.sort((a,b)=>b.timestamp-a.timestamp)[0];
+    if(newest && Date.now()-newest.timestamp < 15000){
+      sendWorkerNotif(
+        lang==='ar'?'🚗 طلب استلام جديد!':'🚗 New Pickup Request!',
+        (lang==='ar'?'الزبون: ':'Customer: ') + newest.customerName
+      );
+    }
+  }
+  _lastReqCount = available.length;
+
+  if(!available.length){
+    list.innerHTML=`<div class="empty"><div class="e-ico">🟢</div><div class="e-txt">${t('no_requests')}</div></div>`;
+    return;
+  }
+
+  list.innerHTML = available.map(r=>{
+    const age=Math.round((Date.now()-r.timestamp)/60000);
+    const ageStr=lang==='ar'?`منذ ${age} دق`:`${age} min ago`;
+    return `<div class="pk-card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+        <div>
+          <div style="font-size:16px;font-weight:700">🚗 ${r.customerName}</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:3px">${r.customerPhone||''}</div>
+        </div>
+        <div style="font-size:11px;color:var(--mu)">${ageStr}</div>
+      </div>
+      <div class="pk-btns">
+        <button class="btn btn-bl" onclick="openMap(${r.lat},${r.lng})">${t('map_btn')}</button>
+        <button class="btn btn-g" onclick="acceptPickup('${r.id}')">${t('accept_btn')}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function acceptPickup(reqId){
+  if(!currentWorker)return;
+  // استخدم transaction لمنع قبول نفس الطلب من عاملين
+  const ref = rdb.ref('pickupRequests/'+reqId);
+  ref.transaction(r=>{
+    if(!r) return; // الطلب حُذف
+    if(r.workerId) return; // قبله عامل آخر — لا تعدّل
+    r.status   = 'accepted';
+    r.workerId = currentWorker.id;
+    r.workerName = currentWorker.name;
+    return r;
+  }, (err, committed, snap)=>{
+    if(err){ toast(lang==='ar'?'❌ خطأ في الاتصال':'❌ Connection error','err'); return; }
+    if(!committed){ toast(lang==='ar'?'⚠️ الطلب قُبل من عامل آخر':'⚠️ Request taken by another worker','err'); return; }
+    const r = snap.val();
+    activeJob={reqId,customerId:r.customerId,customerName:r.customerName,
+      customerPhone:r.customerPhone,lat:r.lat,lng:r.lng,step:'accepted'};
+    _lastReqCount = 0;
+    document.getElementById('w-job-flow').style.display='block';
+    document.getElementById('w-pickups-section').style.display='none';
+    renderJobStep();
+    toast(t('accept_ok'),'ok');
+    // أرسل إشعار للزبون بأن العامل في الطريق
+    rdb.ref('notifications/'+r.customerId).push({{
+      type:'accepted', worker:currentWorker.name, time:Date.now()
+    }});
+  }});
+}}
+
+// ═══════════════════════════════════════════
+//  JOB FLOW
+// ═══════════════════════════════════════════
+const JOB=[
+  {key:'accepted',ico:'🚗',tK:'jf_acc_ttl',sK:'jf_acc_sub',bK:'jf_acc_btn',map:true},
+  {key:'arrived', ico:'✅',tK:'jf_arr_ttl',sK:'jf_arr_sub',bK:'jf_arr_btn',map:false},
+  {key:'toStation',ico:'🏎️',tK:'jf_sta_ttl',sK:'jf_sta_sub',bK:'jf_sta_btn',map:false},
+  {key:'washing', ico:'💧',tK:'jf_was_ttl',sK:'jf_was_sub',bK:'jf_was_btn',map:false},
+  {key:'done',    ico:'🎁',tK:'jf_don_ttl',sK:'jf_don_sub',bK:'jf_don_btn',map:true},
+  {key:'delivery',ico:'🚗',tK:'jf_del_ttl',sK:'jf_del_sub',bK:'jf_del_btn',map:true},
+];
+
+function renderJobStep(){
+  if(!activeJob)return;
+  const i=JOB.findIndex(s=>s.key===activeJob.step);
+  const s=JOB[i]||JOB[0];
+  document.getElementById('wj-ico').textContent=s.ico;
+  document.getElementById('wj-ttl').textContent=t(s.tK);
+  document.getElementById('wj-sub').textContent=t(s.sK)+'\n'+activeJob.customerName;
+  document.getElementById('wj-btn').textContent=t(s.bK);
+  document.getElementById('wj-steps').innerHTML=JOB.map((j,k)=>`<div class="flow-step ${k<i?'done':k===i?'active':''}">${j.ico}</div>`).join('');
+  const mb=document.getElementById('wj-map-btn');
+  mb.style.display=s.map?'flex':'none'; mb.textContent=t('open_map');
+}
+
+function jobNextStep(){
+  if(!activeJob)return;
+  const step=activeJob.step;
+  const notifs={
+    accepted: {next:'arrived',  msg:t('notif_arr'),   notify:true,  type:'arrived'},
+    arrived:  {next:'toStation',msg:t('notif_sta'),   notify:true,  type:'toStation'},
+    toStation:{next:'washing',  msg:t('notif_was'),   notify:true,  type:'washing'},
+    washing:  {next:'done',     msg:t('notif_don'),   notify:true,  type:'done'},
+    done:     {next:'delivery', msg:t('notif_going'), notify:true,  type:'delivery'},
+    delivery: {next:'delivered',msg:t('notif_del'),   notify:true,  type:'delivered'},
+  };
+  const n=notifs[step]; if(!n)return;
+  if(n.notify) rdb.ref('notifications/'+activeJob.customerId).push({type:n.type,worker:currentWorker?.name||'',time:Date.now()});
+  toast(n.msg,'ok');
+  if(n.next==='delivered'){
+    rdb.ref('pickupRequests/'+activeJob.reqId).update({status:'delivered'});
+    // log wash
+    const c=db.customers[activeJob.customerId];
+    if(c){
+      const before=Math.floor((c.drops||0)/10);
+      db.customers[c.id].drops=(c.drops||0)+1;
+      db.customers[c.id].totalWashes=(c.totalWashes||0)+1;
+      if(Math.floor(db.customers[c.id].drops/10)>before) db.customers[c.id].freeWashes=(c.freeWashes||0)+1;
+      db.customers[c.id].history=[{type:'pickup',worker:currentWorker?.name||'',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
+      const wi=db.workers[currentWorker?.id];
+      if(wi){ db.workers[currentWorker.id].totalScans=(wi.totalScans||0)+1; saveWorker(currentWorker.id); }
+      saveCust(c.id);
+    }
+    activeJob=null;
+    document.getElementById('w-job-flow').style.display='none';
+    document.getElementById('w-pickups-section').style.display='block';
+    return;
+  }
+  activeJob.step=n.next;
+  rdb.ref('pickupRequests/'+activeJob.reqId).update({status:n.next});
+  renderJobStep();
+}
+
+function openJobMap(){ if(activeJob) window.open(`https://maps.google.com/?q=${activeJob.lat},${activeJob.lng}`,'_blank'); }
+function openMap(lat,lng){ window.open(`https://maps.google.com/?q=${lat},${lng}`,'_blank'); }
+
+// ═══════════════════════════════════════════
+//  CUSTOMER LOGIN
+// ═══════════════════════════════════════════
+function custLogin(){
+  const phone=document.getElementById('cust-phone').value.trim().replace(/\D/g,'');
+  const err=document.getElementById('clerr');
+  if(!phone){err.textContent=t('err_phone');return;}
+  const c=Object.values(db.customers).find(x=>(x.phone||'').replace(/\D/g,'')===phone);
+  if(c){
+    err.textContent=''; document.getElementById('cust-phone').value='';
+    currentCustomer=c; renderCustDash(c); show('cust-dash'); listenCustNotifs(c.id);
+  }else err.textContent=t('scan_nf');
+}
+
+function listenCustNotifs(custId){
+  rdb.ref('notifications/'+custId).limitToLast(1).on('value',snap=>{
+    const v=snap.val(); if(!v)return;
+    const last=Object.values(v).pop();
+    if(!last||Date.now()-last.time>45000)return;
+    const statusMap={
+      arrived:  {toast:t('cust_arr'),  type:'yay'},
+      toStation:{toast:lang==='ar'?'🏎️ السيارة في الطريق للمحطة':'🏎️ Car heading to station', type:'ok'},
+      washing:  {toast:lang==='ar'?'💧 جاري غسل سيارتك':'💧 Washing your car', type:'ok'},
+      done:     {toast:lang==='ar'?'✅ تم غسل سيارتك!':'✅ Car wash complete!', type:'ok'},
+      delivery: {toast:lang==='ar'?'🚗 سيارتك في الطريق إليك':'🚗 Car is on the way back', type:'ok'},
+      delivered:{toast:t('cust_del'), type:'yay'},
+    };
+    const info=statusMap[last.type];
+    if(info){
+      toast(info.toast, info.type);
+      renderPuStatus({status:last.type, workerName:last.worker||''});
+    }
+  });
+}
+
+function watchMyPickup(reqs){
+  if(!currentCustomer)return;
+  const mine=Object.values(reqs).find(r=>
+    r.customerId===currentCustomer.id &&
+    r.status!=='delivered' &&
+    r.status!=='done'
+  );
+  if(mine) renderPuStatus(mine);
+}
+
+// ═══════════════════════════════════════════
+//  CUSTOMER DASH
+// ═══════════════════════════════════════════
+function renderCustDash(c){
+  const cy=(c.drops||0)%10;
+  document.getElementById('c-nm').textContent=c.name;
+  document.getElementById('c-lvl').textContent=lvl(c.totalWashes||0);
+  document.getElementById('c-tot').textContent=c.totalWashes||0;
+  document.getElementById('c-drp').textContent=cy;
+  document.getElementById('c-fr').textContent=c.freeWashes||0;
+  document.getElementById('c-free-card').style.display=(c.freeWashes||0)>0?'block':'none';
+  document.getElementById('c-free-cnt').textContent=(c.freeWashes||0)+t('free_sub');
+  document.getElementById('c-cnt').textContent=cy+'/10';
+  document.getElementById('c-bucket').innerHTML=Array.from({length:10},(_,i)=>`<div class="bb-drop ${i<cy?'on':''}">${i<cy?'💧':''}</div>`).join('');
+  document.getElementById('c-prog').style.width=(cy*10)+'%';
+  document.getElementById('c-plbl').textContent=cy===0&&(c.freeWashes||0)>0?t('prog_free'):(10-cy)+t('prog_rem');
+  const hist=(c.history||[]).slice(0,15);
+  document.getElementById('c-hist').innerHTML=!hist.length?`<div style="color:var(--mu);text-align:center;padding:18px;font-size:13px">${t('no_hist')}</div>`
+    :hist.map(h=>`<div class="hist-item">
+      <div class="hist-ic">${h.type==='wash'?'💧':h.type==='free'?'🎁':h.type==='pickup'?'🚗':'✏️'}</div>
+      <div><div class="hist-mn">${h.type==='wash'?t('hist_wash'):h.type==='free'?t('hist_free'):h.type==='pickup'?t('hist_pickup'):t('hist_edit')}</div>
+      <div class="hist-dt">${h.date||''}${h.time?' · '+h.time:''}${h.worker?' · '+h.worker:''}</div></div>
+      <div class="hist-dp">+1 💧</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+//  PICKUP (CUSTOMER)
+// ═══════════════════════════════════════════
+function requestPickup(){
+  if(!currentCustomer)return;
+  // عامل متاح = أونلاين + ليس عنده job نشط
+  // نتحقق من pickupRequests للعمال المشغولين
+  rdb.ref('pickupRequests').orderByChild('status').equalTo('accepted').once('value', snap=>{
+    const busyWorkers = new Set();
+    (snap.val()?Object.values(snap.val()):[]).forEach(r=>{ if(r.workerId) busyWorkers.add(r.workerId); });
+    // أضف العمال في الخطوات اللاحقة
+    rdb.ref('pickupRequests').once('value', snap2=>{
+      (snap2.val()?Object.values(snap2.val()):[]).forEach(r=>{
+        if(r.workerId && r.status!=='delivered' && r.status!=='waiting') busyWorkers.add(r.workerId);
+      });
+      const freeWorkers = Object.values(db.workers).filter(w=>w.online && !busyWorkers.has(w.id));
+      if(!freeWorkers.length){
+        toast(t('no_worker'),'err');
+        return;
+      }
+      doRequestPickup();
+    });
+  });
+}
+function doRequestPickup(){
+  if(!currentCustomer)return;
+  if(!navigator.geolocation){toast(t('no_gps'),'err');return;}
+  toast(t('loc_loading'));
+  function sendPickup(lat,lng){
+    const reqId='PK'+Date.now();
+    rdb.ref('pickupRequests/'+reqId).set({
+      id:reqId,customerId:currentCustomer.id,customerName:currentCustomer.name,
+      customerPhone:currentCustomer.phone||'',lat:lat,lng:lng,
+      timestamp:Date.now(),status:'waiting'
+    });
+    toast(t('loc_sent'),'ok');
+    renderPuStatus({status:'waiting'});
+  }
+
+  function onErr(e){
+    // حاول مرة ثانية بدون high accuracy إذا فشل
+    if(e.code===1){
+      // المستخدم رفض الإذن
+      toast('❌ '+(lang==='ar'?'يرجى السماح بالوصول للموقع من إعدادات المتصفح':'Please allow location access in browser settings'),'err');
+    } else if(e.code===2){
+      // GPS غير متاح — جرب بدون highAccuracy
+      navigator.geolocation.getCurrentPosition(
+        pos=>sendPickup(pos.coords.latitude,pos.coords.longitude),
+        ()=>toast(t('loc_err'),'err'),
+        {enableHighAccuracy:false,timeout:20000,maximumAge:60000}
+      );
+    } else {
+      toast(t('loc_err'),'err');
+    }
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos=>sendPickup(pos.coords.latitude,pos.coords.longitude),
+    onErr,
+    {enableHighAccuracy:true,timeout:12000,maximumAge:0}
+  );
+}
+
+function renderPuStatus(req){
+  const area=document.getElementById('pickup-status-area');
+  const s=req.status||'waiting';
+  // زر الإلغاء متاح فقط عند الانتظار
+  // بعد قبول العامل والتوجه للمحطة — لا يمكن الإلغاء
+  const cancelBtn=`<button class="btn btn-er btn-full" style="margin-top:13px" onclick="cancelPickup()">${t('pu_cancel')}</button>`;
+  const newReqBtn=`<button class="btn btn-g btn-full" style="margin-top:13px" onclick="resetPickup()">${t('new_req')}</button>`;
+
+  const M={
+    waiting:`<div class="pu-status">
+      <div class="pu-ico">⏳</div>
+      <div class="pu-txt">${t('pu_wait_ttl')}</div>
+      <div class="pu-sbl">${t('pu_wait_sub')}</div>
+      ${cancelBtn}
+    </div>`,
+    accepted:`<div class="pu-status">
+      <div class="pu-ico">🚗</div>
+      <div class="pu-txt">${t('pu_acc_ttl')}</div>
+      <div class="pu-sbl">${req.workerName||''} ${lang==='ar'?'في الطريق إليك':'is heading to you'}</div>
+      ${cancelBtn}
+    </div>`,
+    arrived:`<div class="pu-status">
+      <div class="pu-ico">📍</div>
+      <div class="pu-txt">${t('pu_arr_ttl')}</div>
+      <div class="pu-sbl">${t('pu_arr_sub')}</div>
+    </div>`,
+    toStation:`<div class="pu-status">
+      <div class="pu-ico">🏎️</div>
+      <div class="pu-txt">${lang==='ar'?'السيارة في الطريق للمحطة':'Car heading to station'}</div>
+      <div class="pu-sbl">${lang==='ar'?'جاري تنظيف سيارتك...':'Your car is being prepared...'}</div>
+    </div>`,
+    washing:`<div class="pu-status">
+      <div class="pu-ico">💧</div>
+      <div class="pu-txt">${lang==='ar'?'جاري غسل سيارتك':'Washing your car'}</div>
+      <div class="pu-sbl">${lang==='ar'?'يرجى الانتظار...':'Please wait...'}</div>
+    </div>`,
+    done:`<div class="pu-status">
+      <div class="pu-ico">✅</div>
+      <div class="pu-txt">${lang==='ar'?'تم غسل سيارتك!':'Car wash complete!'}</div>
+      <div class="pu-sbl">${lang==='ar'?'العامل في الطريق لإعادتها إليك':'Worker is bringing it back to you'}</div>
+    </div>`,
+    delivery:`<div class="pu-status">
+      <div class="pu-ico">🚗</div>
+      <div class="pu-txt">${lang==='ar'?'سيارتك في الطريق إليك':'Your car is on the way'}</div>
+      <div class="pu-sbl">${lang==='ar'?'سيصل العامل قريباً':'Worker will arrive soon'}</div>
+    </div>`,
+    delivered:`<div class="pu-status">
+      <div class="pu-ico">🎉</div>
+      <div class="pu-txt">${t('pu_del_ttl')}</div>
+      <div class="pu-sbl">${t('pu_del_sub')}</div>
+      ${newReqBtn}
+    </div>`,
+  };
+  area.innerHTML=M[s]||M.waiting;
+}
+
+function resetPickup(){
+  document.getElementById('pickup-status-area').innerHTML=`<button class="btn btn-g btn-full" id="c-req-btn" onclick="requestPickup()">${t('req_btn')}</button>`;
+}
+
+function cancelPickup(){
+  rdb.ref('pickupRequests').orderByChild('customerId').equalTo(currentCustomer.id).once('value',snap=>{
+    Object.keys(snap.val()||{}).forEach(k=>{ if((snap.val()[k].status||'')==='waiting') rdb.ref('pickupRequests/'+k).remove(); });
+  });
+  resetPickup(); toast(t('cancel_ok'));
+}
+
+// ═══════════════════════════════════════════
+//  MY QR
+// ═══════════════════════════════════════════
+function showMyQR(){
+  if(!currentCustomer)return;
+  const out=document.getElementById('myqr-out'); out.innerHTML='';
+  new QRCode(out,{text:getCustURL(currentCustomer.id),width:180,height:180,colorDark:'#0a0a0a',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('myqr-name').textContent=currentCustomer.name;
+  document.getElementById('myqr-id').textContent=currentCustomer.id;
+  document.getElementById('myqr-modal').classList.add('on');
+}
+
+// ═══════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>
