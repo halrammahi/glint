@@ -1051,25 +1051,13 @@ function saveDB(){
   rdb.ref().update(updates);
 }
 
-function saveCust(id){
-  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
-  if(db.customers[id]) rdb.ref('glint/customers/'+id).set(db.customers[id]);
-}
 
-function saveWorker(id){
-  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
-  if(db.workers[id]) rdb.ref('glint/workers/'+id).set(db.workers[id]);
-}
 
-function deleteCustDB(id){
-  if(!currentFbUser) return;
-  rdb.ref('glint/customers/'+id).remove();
-}
 
-function deleteWorkerDB(id){
-  if(!currentFbUser) return;
-  rdb.ref('glint/workers/'+id).remove();
-}
+
+
+
+
 
 // حفظ زبون واحد فقط
 function saveCust(id){
@@ -1147,8 +1135,10 @@ function addCustomer(){
   if(!phone){toast(t('err_phone'),'err');return;}
   if(Object.values(db.customers).find(c=>c.phone===phone)){toast(t('dup_phone'),'err');return;}
   const id=uid();
-  db.customers[id]={id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:Date.now()};
-  saveCust(id); lastAddedId=id;
+  const newCust={id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:Date.now()};
+  // اكتب مباشرة لـ Firebase — الـ listener سيحدّث db تلقائياً
+  rdb.ref('glint/customers/'+id).set(newCust);
+  lastAddedId=id;
   makeQR('qr-out','qr-nm','qr-id-lbl',id,name,phone);
   document.getElementById('qr-res').classList.add('on');
   document.getElementById('new-cname').value='';
@@ -1190,8 +1180,9 @@ async function addWorker(){
     console.warn('Worker Firebase account:',e.code);
   }
   const id=wuid();
-  db.workers[id]={id,name,pinHash,role:_workerRole,online:false,totalScans:0,history:[],addedAt:Date.now()};
-  saveWorker(id);
+  const newWorker={id,name,pinHash,role:_workerRole,online:false,totalScans:0,history:[],addedAt:Date.now()};
+  // اكتب مباشرة لـ Firebase — الـ listener سيحدّث db تلقائياً
+  rdb.ref('glint/workers/'+id).set(newWorker);
   showLoad(false);
   document.getElementById('new-wname').value='';
   [0,1,2,3].forEach(i=>document.getElementById('wp'+i).value='');
@@ -1209,12 +1200,14 @@ function wpinMove(i){ if(document.getElementById('wp'+i).value && i<3) document.
 function deleteCustomer(id){
   const c=db.customers[id];
   if(!c||!confirm(t('confirm_del_c')+' '+c.name+'?'))return;
-  delete db.customers[id]; deleteCustDB(id); renderCustList(); closeDetail(); toast(t('del_ok'),'err');
+  rdb.ref('glint/customers/'+id).remove();
+  closeDetail(); toast(t('del_ok'),'err');
 }
 function deleteWorker(id){
   const w=db.workers[id];
   if(!w||!confirm(t('confirm_del_w')+' '+w.name+'?'))return;
-  delete db.workers[id]; deleteWorkerDB(id); renderWorkerList(); closeDetail(); toast(t('del_w_ok'),'err');
+  rdb.ref('glint/workers/'+id).remove();
+  closeDetail(); toast(t('del_w_ok'),'err');
 }
 
 async function resetWorkerPIN(id){
@@ -1256,7 +1249,7 @@ function editWashes(id,delta){
   db.customers[id].drops=Math.max(0,(c.drops||0)+delta);
   db.customers[id].totalWashes=Math.max(0,(c.totalWashes||0)+delta);
   db.customers[id].history=[{type:'edit',delta,by:'owner',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
-  saveCust(id); toast(delta>0?t('add_wash_ok'):t('rem_wash_ok'),'ok'); openCustDetail(id);
+  rdb.ref('glint/customers/'+id).set(db.customers[id]); toast(delta>0?t('add_wash_ok'):t('rem_wash_ok'),'ok'); openCustDetail(id);
 }
 
 // ═══════════════════════════════════════════
@@ -1748,9 +1741,10 @@ function confirmWash(){
   if(gotFree){ db.customers[c.id].freeWashes=(c.freeWashes||0)+1; toast(t('congrats')+c.name+t('got_free'),'yay'); }
   else toast(t('wash_ok')+c.name,'ok');
   db.customers[c.id].history=[{type:'wash',worker:currentWorker?.name||'',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
+  rdb.ref('glint/customers/'+c.id).set(db.customers[c.id]);
   const wi=db.workers[currentWorker?.id];
-  if(wi){ db.workers[currentWorker.id].totalScans=(wi.totalScans||0)+1; saveWorker(currentWorker.id); }
-  saveCust(c.id); cancelScan();
+  if(wi){ db.workers[currentWorker.id].totalScans=(wi.totalScans||0)+1; rdb.ref('glint/workers/'+currentWorker.id+'/totalScans').set(db.workers[currentWorker.id].totalScans); }
+  cancelScan();
 }
 
 function redeemFree(){
@@ -1760,7 +1754,7 @@ function redeemFree(){
   db.customers[c.id].freeWashes--;
   db.customers[c.id].totalWashes=(c.totalWashes||0)+1;
   db.customers[c.id].history=[{type:'free',worker:currentWorker?.name||'',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
-  saveCust(c.id); cancelScan(); toast(t('free_ok')+pending.name,'yay');
+  rdb.ref('glint/customers/'+c.id).set(db.customers[c.id]); cancelScan(); toast(t('free_ok')+pending.name,'yay');
 }
 
 function cancelScan(){ pending=null; document.getElementById('wsf').style.display='none'; }
@@ -1775,8 +1769,7 @@ function wAddCustomer(){
   if(!name||!phone){toast(t('err_name')+' / '+t('err_phone'),'err');return;}
   if(Object.values(db.customers).find(c=>c.phone===phone)){toast(t('dup_phone'),'err');return;}
   const id=uid();
-  db.customers[id]={id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:Date.now()};
-  saveCust(id);
+  rdb.ref('glint/customers/'+id).set({id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:Date.now()});
   document.getElementById('w-new-cname').value='';
   document.getElementById('w-new-cphone').value='';
   const out=document.getElementById('w-qr-out'); out.innerHTML='';
@@ -1925,9 +1918,9 @@ function jobNextStep(){
       db.customers[c.id].totalWashes=(c.totalWashes||0)+1;
       if(Math.floor(db.customers[c.id].drops/10)>before) db.customers[c.id].freeWashes=(c.freeWashes||0)+1;
       db.customers[c.id].history=[{type:'pickup',worker:currentWorker?.name||'',date:today(),time:nowt(),ts:Date.now()},...(c.history||[])];
+      rdb.ref('glint/customers/'+c.id).set(db.customers[c.id]);
       const wi=db.workers[currentWorker?.id];
-      if(wi){ db.workers[currentWorker.id].totalScans=(wi.totalScans||0)+1; saveWorker(currentWorker.id); }
-      saveCust(c.id);
+      if(wi){ db.workers[currentWorker.id].totalScans=(wi.totalScans||0)+1; rdb.ref('glint/workers/'+currentWorker.id+'/totalScans').set(db.workers[currentWorker.id].totalScans); }
     }
     activeJob=null;
     document.getElementById('w-job-flow').style.display='none';
