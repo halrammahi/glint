@@ -415,6 +415,7 @@ html[dir=ltr] #LB{right:auto;left:14px}
         <div class="card-ttl" id="ac-ttl">إضافة زبون جديد</div>
         <input class="inp" type="text" id="nc-name" placeholder="اسم الزبون..."/>
         <input class="inp" type="tel" id="nc-phone" placeholder="رقم الهاتف..."/>
+        <input class="inp" type="text" id="nc-plate" placeholder="رقم اللوحة (مثال: أبوظبي A 12345)"/>
         <button class="btn btn-g btn-w" id="ac-btn">➕ إضافة زبون</button>
         <div class="qr-res" id="qr-res">
           <div class="qr-frame"><div id="qr-out"></div></div>
@@ -529,6 +530,7 @@ html[dir=ltr] #LB{right:auto;left:14px}
         <div class="card-ttl" id="w-mgr-ttl">إضافة زبون (مسؤول)</div>
         <input class="inp" type="text" id="wc-name" placeholder="اسم الزبون..."/>
         <input class="inp" type="tel" id="wc-phone" placeholder="رقم الهاتف..."/>
+        <input class="inp" type="text" id="wc-plate" placeholder="رقم اللوحة (مثال: أبوظبي A 12345)"/>
         <button class="btn btn-g btn-w" id="w-add-c-btn">➕ إضافة زبون</button>
         <div class="qr-res" id="w-qr-res"><div class="qr-frame"><div id="w-qr-out"></div></div><div style="font-size:14px;font-weight:700;color:var(--g);margin-top:9px" id="w-qr-nm"></div></div>
       </div>
@@ -1161,22 +1163,46 @@ function otab(i){
 // ═══════════════════════════════════════════════════
 //  ADD CUSTOMER
 // ═══════════════════════════════════════════════════
-function addCustomer(nameId, phoneId, qrOutId, qrNmId, qrIdId, qrResId){
-  const name=$id(nameId).value.trim();
-  const phone=$id(phoneId).value.trim().replace(/\D/g,'');
+function addCustomer(nameId, phoneId, plateId, qrOutId, qrNmId, qrIdId, qrResId){
+  const name=$id(nameId)?.value.trim()||'';
+  const phone=$id(phoneId)?.value.trim().replace(/\D/g,'')||'';
+  const plate=$id(plateId)?.value.trim()||'';
   if(!name){ toast(t('err_name'),'er'); return; }
   if(!phone){ toast(t('err_phone'),'er'); return; }
-  if(Object.values(customers).find(c=>(c.phone||'').replace(/\D/g,'')===phone)){
-    toast(t('dup_phone'),'er'); return;
+
+  // تحقق: هل الهاتف مسجل مسبقاً؟
+  const existing=Object.values(customers).find(c=>(c.phone||'').replace(/\D/g,'')===phone);
+  if(existing){
+    // نفس الزبون — أضف السيارة الجديدة فقط
+    if(!plate){ toast(lang==='ar'?'⚠️ هذا الرقم مسجل — أدخل رقم اللوحة للسيارة الجديدة':'⚠️ Phone registered — enter plate for new car','er'); return; }
+    const carId='CAR'+Date.now();
+    const cars=[...(existing.cars||[])];
+    if(cars.find(car=>car.plate===plate)){ toast(lang==='ar'?'⚠️ هذه اللوحة مسجلة مسبقاً':'⚠️ Plate already registered','er'); return; }
+    cars.push({id:carId,plate,addedAt:tsNow(),active:true});
+    rdb.ref('glint/customers/'+existing.id+'/cars').set(cars);
+    lastId=existing.id;
+    if($id(nameId)) $id(nameId).value='';
+    if($id(phoneId)) $id(phoneId).value='';
+    if($id(plateId)) $id(plateId).value='';
+    makeQR(qrOutId, existing.id, existing.name);
+    if(qrNmId) setText(qrNmId, existing.name+' · '+plate);
+    if(qrIdId) setText(qrIdId, existing.id);
+    if(qrResId) $id(qrResId).classList.add('on');
+    toast((lang==='ar'?'🚗 أُضيفت سيارة جديدة لـ ':'🚗 New car added for ')+existing.name,'ok');
+    return;
   }
+
+  // زبون جديد
   const id=uid();
-  const data={id,name,phone,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:tsNow()};
-  // كتابة مباشرة لـ Firebase — الـ listener سيحدّث customers تلقائياً
+  const cars=plate?[{id:'CAR'+Date.now(),plate,addedAt:tsNow(),active:true}]:[];
+  const data={id,name,phone,cars,drops:0,freeWashes:0,totalWashes:0,history:[],addedAt:tsNow()};
   rdb.ref('glint/customers/'+id).set(data);
   lastId=id;
-  $id(nameId).value=''; $id(phoneId).value='';
+  if($id(nameId)) $id(nameId).value='';
+  if($id(phoneId)) $id(phoneId).value='';
+  if($id(plateId)) $id(plateId).value='';
   makeQR(qrOutId, id, name);
-  if(qrNmId) setText(qrNmId, name);
+  if(qrNmId) setText(qrNmId, name+(plate?' · '+plate:''));
   if(qrIdId) setText(qrIdId, id);
   if(qrResId) $id(qrResId).classList.add('on');
   toast(t('added_c')+name,'ok');
@@ -1375,6 +1401,18 @@ function editWashes(id, delta){
   rdb.ref('glint/customers/'+id).update({drops:newDrops,totalWashes:newTotal,history:hist});
   toast(delta>0?t('add_wash_ok'):t('rem_wash_ok'),'ok');
   setTimeout(()=>openCustDetail(id),500);
+}
+
+function removeCar(custId, carIdx){
+  const c=customers[custId]; if(!c) return;
+  const cars=[...(c.cars||[])];
+  if(!cars[carIdx]) return;
+  const plate=cars[carIdx].plate;
+  if(!confirm((lang==='ar'?'حذف السيارة: ':'Remove car: ')+plate+'?')) return;
+  cars[carIdx].active=false;
+  rdb.ref('glint/customers/'+custId+'/cars').set(cars);
+  toast((lang==='ar'?'🗑 تم حذف السيارة: ':'🗑 Car removed: ')+plate,'er');
+  setTimeout(()=>openCustDetail(custId),500);
 }
 
 function deleteCust(id){
@@ -1639,7 +1677,7 @@ function cancelScan(){ pending=null; $id('wsf').style.display='none'; }
 // ═══════════════════════════════════════════════════
 function wAddCustomer(){
   if(!cWorker||cWorker.role!=='manager'){ toast(t('no_perm'),'er'); return; }
-  addCustomer('wc-name','wc-phone','w-qr-out','w-qr-nm',null,'w-qr-res');
+  addCustomer('wc-name','wc-phone','wc-plate','w-qr-out','w-qr-nm',null,'w-qr-res');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1670,10 +1708,15 @@ function renderPickupList(reqs){
   if(!avail.length){ el.innerHTML=`<div class="empty"><div class="empty-ico">🟢</div><div>${t('no_reqs')}</div></div>`; return; }
   el.innerHTML=avail.map(r=>{
     const age=Math.round((tsNow()-r.timestamp)/60000);
+    const pkCust=customers[r.customerId];
+    const pkPlates=(pkCust?.cars||[]).filter(car=>car.active).map(car=>car.plate);
     return `<div class="pk-card">
       <div style="display:flex;justify-content:space-between">
-        <div><div style="font-size:15px;font-weight:700">🚗 ${r.customerName}</div>
-          <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.customerPhone||''}</div></div>
+        <div>
+          <div style="font-size:15px;font-weight:700">🚗 ${r.customerName}</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.customerPhone||''}</div>
+          ${pkPlates.length?`<div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">${pkPlates.map(p=>`<span style="font-size:11px;font-weight:700;background:rgba(201,168,76,.15);border:1px solid var(--g);border-radius:6px;padding:3px 8px;color:var(--g2)">${p}</span>`).join('')}</div>`:''} 
+        </div>
         <div style="font-size:11px;color:var(--mu)">${lang==='ar'?'منذ ':''} ${age} ${lang==='ar'?'دق':'min ago'}</div>
       </div>
       <div class="pk-btns">
@@ -1722,7 +1765,9 @@ function renderJobStep(){
   if(!jobActive) return;
   const s=STEPS[jobActive.step]||STEPS[0];
   setText('wj-ico',s.ico); setText('wj-ttl',t(s.tK));
-  setText('wj-sub',t(s.sK)+'\n'+jobActive.customerName);
+  const jCust=customers[jobActive.customerId];
+  const jPlates=(jCust?.cars||[]).filter(c=>c.active).map(c=>c.plate).join(' / ');
+  setText('wj-sub',t(s.sK)+'\n'+jobActive.customerName+(jPlates?' · 🔢'+jPlates:''));
   setText('wj-btn',t(s.bK));
   $id('wj-steps').innerHTML=STEPS.map((st,i)=>`<div class="fs ${i<jobActive.step?'done':i===jobActive.step?'active':''}">${st.ico}</div>`).join('');
   const mb=$id('wj-map'); mb.style.display=s.map?'flex':'none'; setText('wj-map',t('open_map'));
@@ -2086,7 +2131,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Owner
   $id('o-logout').onclick=ownerLogout;
   for(let i=0;i<5;i++){ (j=>{ $id('ot'+j).onclick=()=>otab(j); })(i); }
-  $id('ac-btn').onclick=()=>addCustomer('nc-name','nc-phone','qr-out','qr-nm','qr-id','qr-res');
+  $id('ac-btn').onclick=()=>addCustomer('nc-name','nc-phone','nc-plate','qr-out','qr-nm','qr-id','qr-res');
   $id('print-btn').onclick=printQR;
   $id('aw-btn').onclick=addWorker;
   $id('role-m').onclick=()=>selectRole('manager');
