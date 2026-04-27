@@ -1767,8 +1767,12 @@ function renderCustDash(c){
 // ═══════════════════════════════════════════════════
 //  PICKUP (CUSTOMER)
 // ═══════════════════════════════════════════════════
+let _pickupBusy=false;
 function requestPickup(){
-  if(!cCustomer){ toast('❌ يرجى تسجيل الدخول أولاً','er'); return; }
+  if(_pickupBusy) return; // منع الضغط المزدوج
+  _pickupBusy=true;
+  setTimeout(()=>_pickupBusy=false,3000);
+  if(!cCustomer){ toast('❌ يرجى تسجيل الدخول أولاً','er'); _pickupBusy=false; return; }
   if(!navigator.geolocation){ toast(t('no_gps'),'er'); return; }
 
   // تحقق من عامل أونلاين — مع fallback إذا ما تحملت البيانات
@@ -1842,7 +1846,7 @@ function renderPuStatus(req){
 }
 
 function resetPickupUI(){
-  $id('c-pu-area').innerHTML=`<button class="btn btn-g btn-w" id="c-req-btn" onclick="requestPickup()">${t('c_req_btn')}</button>`;
+  $id('c-pu-area').innerHTML=`<button class="btn btn-g btn-w" id="c-req-btn">${t('c_req_btn')}</button>`;
 }
 
 function cancelPickup(){
@@ -1871,15 +1875,51 @@ let notifGranted=false;
 async function reqNotifPerm(){
   if(!('Notification' in window)) return;
   if(Notification.permission==='granted'){ notifGranted=true; return; }
-  if(Notification.permission==='denied') return;
-  const p=await Notification.requestPermission();
-  notifGranted=p==='granted';
+  if(Notification.permission==='denied'){
+    // أظهر زر للعامل يطلب منه تفعيل الإشعارات يدوياً
+    showNotifPrompt();
+    return;
+  }
+  // اطلب الإذن
+  try{
+    const p=await Notification.requestPermission();
+    notifGranted=p==='granted';
+    if(notifGranted) toast(lang==='ar'?'🔔 تم تفعيل الإشعارات':'🔔 Notifications enabled','ok');
+    else showNotifPrompt();
+  }catch(e){}
+}
+
+function showNotifPrompt(){
+  // أظهر بانر للعامل يطلب منه تفعيل الإشعارات
+  const sec=$id('w-pu-sec');
+  if(!sec||$id('notif-banner')) return;
+  const banner=document.createElement('div');
+  banner.id='notif-banner';
+  banner.style.cssText='background:#1a1000;border:1px solid var(--g);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px';
+  banner.innerHTML=`
+    <span style="font-size:20px">🔔</span>
+    <div style="flex:1;font-size:12px;color:var(--mu)">${lang==='ar'?'فعّل الإشعارات لاستقبال طلبات الاستلام':'Enable notifications to receive pickup requests'}</div>
+    <button onclick="reqNotifPerm();this.parentElement.remove()" style="background:var(--g);color:#000;border:none;border-radius:8px;padding:7px 12px;font-family:Cairo,sans-serif;font-size:12px;font-weight:700;cursor:pointer">${lang==='ar'?'تفعيل':'Enable'}</button>
+  `;
+  sec.insertBefore(banner,sec.firstChild);
 }
 
 function sendNotif(title,body){
-  beep(); beep();
-  if(notifGranted&&document.hidden){
-    try{ const n=new Notification(title,{body,icon:'💧',vibrate:[300,100,300],requireInteraction:true,tag:'glint-pickup'}); n.onclick=()=>{window.focus();n.close();}; }catch(e){}
+  // صوت تنبيه متكرر وقوي
+  for(let i=0;i<3;i++) setTimeout(()=>beep(),i*300);
+  // اهتزاز إذا متاح
+  if(navigator.vibrate) navigator.vibrate([300,100,300,100,500]);
+  // إشعار النظام
+  if(notifGranted){
+    try{
+      const n=new Notification(title,{
+        body,
+        requireInteraction:true,
+        tag:'glint-pickup',
+        vibrate:[300,100,300,100,300]
+      });
+      n.onclick=()=>{window.focus();n.close();};
+    }catch(e){}
   }
   toast('🔔 '+title+' — '+body,'yay');
 }
@@ -1946,8 +1986,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Cust
   $id('c-qr-btn').onclick=showMyQR;
   $id('c-exit').onclick=()=>{ cCustomer=null; showScreen('s-splash'); };
-  $id('c-req-btn')?.addEventListener('click',requestPickup);
-  // re-bind after resetPickupUI recreates button
+  // استخدم event delegation فقط — منع التكرار
   $id('c-pu-area')?.addEventListener('click',e=>{ if(e.target.id==='c-req-btn') requestPickup(); });
   $id('myqr-close').onclick=()=>$id('qrm').classList.remove('on');
   $id('qrm').onclick=e=>{ if(e.target===$id('qrm')) $id('qrm').classList.remove('on'); };
