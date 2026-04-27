@@ -1746,6 +1746,7 @@ function acceptPickup(reqId){
     jobActive={reqId,customerId:r.customerId,customerName:r.customerName,
       customerPhone:r.customerPhone,carPlate:r.carPlate||'',
       lat:r.lat,lng:r.lng,step:0};
+    stopRepeatAlarm(); // أوقف التنبيه عند القبول
     rdb.ref('notifications/'+r.customerId).push({type:'accepted',worker:cWorker.name,time:tsNow()});
     $id('w-job').style.display='block';
     $id('w-pu-sec').style.display='none';
@@ -2075,6 +2076,49 @@ function showNotifPrompt(){
     <button onclick="reqNotifPerm();this.parentElement.remove()" style="background:var(--g);color:#000;border:none;border-radius:8px;padding:7px 12px;font-family:Cairo,sans-serif;font-size:12px;font-weight:700;cursor:pointer">${lang==='ar'?'تفعيل':'Enable'}</button>
   `;
   sec.insertBefore(banner,sec.firstChild);
+}
+
+// ── نظام التنبيه المتواصل ──
+let _alarmInterval = null;
+let _alarmReqId = null;
+
+function startRepeatAlarm(reqId, title, body){
+  // لا تبدأ alarm جديد إذا نفس الطلب
+  if(_alarmReqId === reqId) return;
+  stopRepeatAlarm();
+  _alarmReqId = reqId;
+  let count = 0;
+  const maxRepeats = 12; // أقصى 12 مرة = دقيقة كاملة
+  _alarmInterval = setInterval(async ()=>{
+    count++;
+    // تحقق من Firebase هل الطلب قُبل
+    const snap = await rdb.ref('pickupRequests/'+reqId).once('value');
+    const req = snap.val();
+    if(!req || req.status !== 'waiting' || req.workerId || count >= maxRepeats){
+      stopRepeatAlarm();
+      return;
+    }
+    // الطلب لم يُقبل — كرر التنبيه
+    playAlarm();
+    if(notifGranted){
+      try{
+        new Notification(title, {
+          body: (lang==='ar'?'⏳ في انتظار القبول · ':'⏳ Waiting · ')+body,
+          requireInteraction:true,
+          tag:'glint-repeat-'+reqId,
+          renotify:true,
+          silent:false
+        });
+      }catch(e){}
+    }
+    // أرسل FCM مرة ثانية
+    sendFCMtoAllWorkers(title, (lang==='ar'?'⏳ في انتظار القبول · ':'⏳ Waiting · ')+body);
+  }, 5000); // كل 5 ثواني
+}
+
+function stopRepeatAlarm(){
+  if(_alarmInterval){ clearInterval(_alarmInterval); _alarmInterval=null; }
+  _alarmReqId=null;
 }
 
 async function sendFCMviaWorker(title, body, token){
