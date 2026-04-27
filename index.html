@@ -933,33 +933,52 @@ function toast(msg, type=''){
   beep();
 }
 
-function beep(freq=880, dur=0.2, vol=0.8){
+// نغمة تنبيه احترافية — طويلة وواضحة
+function playAlarm(){
   try{
     const ac=new(window.AudioContext||window.webkitAudioContext)();
-    const o=ac.createOscillator(), g=ac.createGain();
-    o.connect(g); g.connect(ac.destination);
-    o.type='square'; // أقوى من sine
-    o.frequency.value=freq;
-    g.gain.setValueAtTime(vol, ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+dur);
-    o.start(ac.currentTime);
-    o.stop(ac.currentTime+dur+0.05);
+
+    // نغمة متصاعدة ذات 3 طبقات — مثل نغمة إنذار السيارة
+    function tone(freq, start, dur, vol=0.9, type='sawtooth'){
+      const o=ac.createOscillator();
+      const g=ac.createGain();
+      const c=ac.createDynamicsCompressor(); // يجعل الصوت أعلى
+      o.connect(g); g.connect(c); c.connect(ac.destination);
+      o.type=type;
+      o.frequency.setValueAtTime(freq, ac.currentTime+start);
+      g.gain.setValueAtTime(0, ac.currentTime+start);
+      g.gain.linearRampToValueAtTime(vol, ac.currentTime+start+0.02);
+      g.gain.setValueAtTime(vol, ac.currentTime+start+dur-0.05);
+      g.gain.linearRampToValueAtTime(0, ac.currentTime+start+dur);
+      o.start(ac.currentTime+start);
+      o.stop(ac.currentTime+start+dur+0.05);
+    }
+
+    // نغمة تنبيه: صاعدة هابطة × 3 مع توقف قصير
+    // ─── دورة 1 ───
+    tone(880, 0.0,  0.18);
+    tone(660, 0.2,  0.18);
+    tone(880, 0.4,  0.18);
+    tone(1100,0.6,  0.3, 1.0);
+    // ─── توقف 0.2 ثانية ───
+    // ─── دورة 2 ───
+    tone(880, 1.1,  0.18);
+    tone(660, 1.3,  0.18);
+    tone(880, 1.5,  0.18);
+    tone(1100,1.7,  0.4, 1.0);
+    // ─── دورة 3 أعلى ───
+    tone(1100,2.3,  0.15);
+    tone(1320,2.5,  0.15);
+    tone(1100,2.7,  0.15);
+    tone(1320,2.9,  0.15);
+    tone(1540,3.1,  0.5, 1.0);
+
   }catch(e){}
+  // اهتزاز قوي ومتكرر
+  if(navigator.vibrate) navigator.vibrate([400,150,400,150,400,150,400,150,700]);
 }
 
-function playAlarm(){
-  // نغمة تنبيه قوية ومتكررة — 5 مرات
-  const pattern=[
-    {f:1200,d:0.15,v:1.0, t:0.0},
-    {f:900, d:0.15,v:1.0, t:0.2},
-    {f:1200,d:0.15,v:1.0, t:0.4},
-    {f:900, d:0.15,v:1.0, t:0.6},
-    {f:1400,d:0.3, v:1.0, t:0.8},
-  ];
-  pattern.forEach(p=>setTimeout(()=>beep(p.f,p.d,p.v), p.t*1000));
-  // اهتزاز قوي ومتكرر
-  if(navigator.vibrate) navigator.vibrate([400,150,400,150,400,150,600]);
-}
+function beep(){ playAlarm(); } // للتوافق
 
 // ═══════════════════════════════════════════════════
 //  LANGUAGE
@@ -2103,47 +2122,44 @@ let _alarmInterval = null;
 let _alarmReqId = null;
 
 function startRepeatAlarm(reqId, title, body){
-  if(_alarmReqId===reqId) return; // نفس الطلب — لا تكرر
+  if(_alarmReqId===reqId) return;
   stopRepeatAlarm();
   _alarmReqId=reqId;
   let count=0;
-  const MAX=20; // 20 × 6 ثواني = دقيقتان
+  const MAX=20;
 
-  _alarmInterval=setInterval(async()=>{
+  // استمع لتغيير الطلب في Firebase مباشرة
+  const reqRef=rdb.ref('pickupRequests/'+reqId+'/status');
+  reqRef.on('value', snap=>{
+    const status=snap.val();
+    if(!status||status!=='waiting'){ stopRepeatAlarm(); }
+  });
+
+  // أطلق التنبيه كل 5 ثواني
+  _alarmInterval=setInterval(()=>{
     count++;
-    if(count>=MAX){ stopRepeatAlarm(); return; }
-
-    // تحقق من Firebase — هل الطلب قُبل؟
-    try{
-      const snap=await rdb.ref('pickupRequests/'+reqId+'/status').once('value');
-      const status=snap.val();
-      if(!status||status!=='waiting'){ stopRepeatAlarm(); return; }
-    }catch(e){}
-
-    // الطلب لا يزال ينتظر — نبّه مرة أخرى
+    if(count>=MAX||!_alarmReqId){ stopRepeatAlarm(); return; }
     playAlarm();
-    if(navigator.vibrate) navigator.vibrate([500,200,500,200,600]);
-
     // إشعار النظام
     if(notifGranted){
       try{
         new Notification(title,{
-          body:(lang==='ar'?'⏳ لم يُقبل بعد · ':'⏳ Still waiting · ')+body,
+          body:(lang==='ar'?`⏳ طلب جديد (${count}) · `:`⏳ Request (${count}) · `)+body,
           requireInteraction:true,
-          tag:'glint-alarm', // نفس الـ tag يستبدل القديم
+          tag:'glint-alarm',
           renotify:true,
           silent:false
         });
       }catch(e){}
     }
-
-    // FCM للشاشة المقفلة
-    sendFCMtoAllWorkers(title,(lang==='ar'?'⏳ لم يُقبل بعد · ':'⏳ Still waiting · ')+body);
-  },6000); // كل 6 ثواني
+    // FCM كل 10 ثواني (كل مرتين)
+    if(count%2===0) sendFCMtoAllWorkers(title,(lang==='ar'?`⏳ طلب جديد (${count}) · `:`⏳ Request (${count}) · `)+body);
+  },5000);
 }
 
 function stopRepeatAlarm(){
   if(_alarmInterval){ clearInterval(_alarmInterval); _alarmInterval=null; }
+  if(_alarmReqId) rdb.ref('pickupRequests/'+_alarmReqId+'/status').off();
   _alarmReqId=null;
 }
 
