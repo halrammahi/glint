@@ -850,8 +850,8 @@ const lvl  = tot => tot>=100 ? (lang==='ar'?'✦ بلاتيني':'✦ Platinum')
                   : tot>=50  ? (lang==='ar'?'● ذهبي':'● Gold')
                   : tot>=20  ? (lang==='ar'?'○ فضي':'○ Silver')
                   : (lang==='ar'?'· عضو جديد':'· New Member');
-const today  = () => new Date().toLocaleDateString('ar-SA');
-const nowStr = () => new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+const today  = () => new Date().toLocaleDateString('ar-AE',{timeZone:'Asia/Dubai'});
+const nowStr = () => new Date().toLocaleTimeString('ar-AE',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit'});
 const tsNow  = () => Date.now();
 
 async function sha256(s){
@@ -977,7 +977,10 @@ async function boot(){
     fauth = firebase.auth();
     fauth.onAuthStateChanged(u=>{ fbUser=u; });
 
-    // Listen to DB — مباشرة بدون auth (rules تسمح بالقراءة)
+    // سجّل دخول anonymous فوراً — لازم قبل قراءة أي بيانات
+    await fauth.signInAnonymously();
+
+    // الآن نقدر نقرأ DB
     rdb.ref('glint/customers').on('value', snap=>{
       customers = snap.val()||{};
       if(cCustomer){
@@ -1005,10 +1008,15 @@ async function boot(){
     // QR link؟
     const qrId=new URLSearchParams(location.search).get('c');
     if(qrId){
+      // anonymous auth مسجّل بالفعل — انتظر تحميل البيانات
       setTimeout(()=>{
         const c=customers[qrId.toUpperCase()];
         if(c){ cCustomer=c; renderCustDash(c); showScreen('s-cust'); startCustNotifs(c.id); }
-      },1200);
+        else setTimeout(()=>{
+          const c2=customers[qrId.toUpperCase()];
+          if(c2){ cCustomer=c2; renderCustDash(c2); showScreen('s-cust'); startCustNotifs(c2.id); }
+        },2000);
+      },1500);
       return;
     }
 
@@ -1059,7 +1067,7 @@ async function ownerLogin(){
   const h=await sha256(pw);
   if(h===OPH){
     // anonymous sign-in للكتابة في DB
-    try{ await fauth.signInAnonymously(); }catch(e){}
+    try{ if(fauth) await fauth.signInAnonymously(); }catch(e){}
     showLoad(false);
     showScreen('s-owner');
     renderCustList(); renderWorkerList(); renderStats();
@@ -1070,7 +1078,7 @@ async function ownerLogin(){
 }
 
 function ownerLogout(){
-  fauth.signOut().catch(()=>{});
+  if(fauth) fauth.signOut().catch(()=>{});
   fbUser=null;
   showScreen('s-splash');
 }
@@ -1252,7 +1260,12 @@ function openCustDetail(id){
 
 function openWorkerDetail(id){
   const w=workers[id]; if(!w) return;
-  const now=new Date(); now.setHours(0,0,0,0);
+  // منتصف ليل الإمارات (UTC+4)
+  const uaeOffset = 4 * 60 * 60 * 1000;
+  const nowUTC = Date.now();
+  const nowUAE = new Date(nowUTC + uaeOffset);
+  nowUAE.setUTCHours(0,0,0,0);
+  const now = new Date(nowUAE.getTime() - uaeOffset);
   const wkS=new Date(now); wkS.setDate(now.getDate()-now.getDay());
   const moS=new Date(now.getFullYear(),now.getMonth(),1);
   const yrS=new Date(now.getFullYear(),0,1);
@@ -1337,7 +1350,12 @@ function setPeriod(p){
 }
 
 function renderStats(){
-  const now=new Date(); now.setHours(0,0,0,0);
+  // منتصف ليل الإمارات (UTC+4)
+  const uaeOffset = 4 * 60 * 60 * 1000;
+  const nowUTC = Date.now();
+  const nowUAE = new Date(nowUTC + uaeOffset);
+  nowUAE.setUTCHours(0,0,0,0);
+  const now = new Date(nowUAE.getTime() - uaeOffset);
   const wkS=new Date(now); wkS.setDate(now.getDate()-now.getDay());
   const moS=new Date(now.getFullYear(),now.getMonth(),1);
   const filt=h=>{
@@ -1407,7 +1425,7 @@ async function workerLogin(){
   const pinHash=await sha256('glint'+pin);
   const w=Object.values(workers).find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.pinHash===pinHash);
   if(w){
-    try{ await fauth.signInAnonymously(); }catch(e){}
+    try{ if(fauth) await fauth.signInAnonymously(); }catch(e){}
     cWorker=w; showLoad(false);
     $id('wname').value=''; [0,1,2,3].forEach(i=>$id('wp'+i).value='');
     err.textContent='';
@@ -1750,30 +1768,60 @@ function renderCustDash(c){
 //  PICKUP (CUSTOMER)
 // ═══════════════════════════════════════════════════
 function requestPickup(){
+  if(!cCustomer){ toast('❌ يرجى تسجيل الدخول أولاً','er'); return; }
+  if(!navigator.geolocation){ toast(t('no_gps'),'er'); return; }
+
+  // تحقق من عامل أونلاين — مع fallback إذا ما تحملت البيانات
+  const onlineWorkers = Object.values(workers).filter(w=>w.online);
+
+  // إذا ما في عمال في الـ cache — اقرأ من Firebase مباشرة
+  if(Object.keys(workers).length===0){
+    toast(lang==='ar'?'⏳ جاري التحقق...':'⏳ Checking...'); 
+    rdb.ref('glint/workers').once('value',snap=>{
+      const ws=snap.val()||{};
+      const free=Object.values(ws).filter(w=>w.online);
+      if(!free.length){ toast(t('no_worker'),'er'); return; }
+      doPickup();
+    });
+    return;
+  }
+
+  if(!onlineWorkers.length){ toast(t('no_worker'),'er'); return; }
+  doPickup();
+}
+
+function doPickup(){
   if(!cCustomer) return;
-  // تحقق من وجود عامل أونلاين وغير مشغول
-  rdb.ref('pickupRequests').orderByChild('status').equalTo('accepted').once('value',snap=>{
-    const busy=new Set();
-    Object.values(snap.val()||{}).forEach(r=>{ if(r.workerId) busy.add(r.workerId); });
-    const free=Object.values(workers).filter(w=>w.online&&!busy.has(w.id));
-    if(!free.length){ toast(t('no_worker'),'er'); return; }
-    if(!navigator.geolocation){ toast(t('no_gps'),'er'); return; }
-    toast(t('loc_loading'));
-    navigator.geolocation.getCurrentPosition(pos=>{
+  toast(t('loc_loading'));
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
       const {latitude,longitude}=pos.coords;
       const reqId='PK'+tsNow();
       rdb.ref('pickupRequests/'+reqId).set({
-        id:reqId,customerId:cCustomer.id,customerName:cCustomer.name,
-        customerPhone:cCustomer.phone||'',lat:latitude,lng:longitude,
-        timestamp:tsNow(),status:'waiting'
+        id:reqId,
+        customerId:cCustomer.id,
+        customerName:cCustomer.name,
+        customerPhone:cCustomer.phone||'',
+        lat:latitude,
+        lng:longitude,
+        timestamp:tsNow(),
+        status:'waiting'
+      }).then(()=>{
+        toast(t('loc_sent'),'ok');
+        renderPuStatus({status:'waiting'});
+      }).catch(()=>{
+        toast(lang==='ar'?'❌ فشل الإرسال، تحقق من الاتصال':'❌ Failed to send, check connection','er');
       });
-      toast(t('loc_sent'),'ok');
-      renderPuStatus({status:'waiting'});
-    },err=>{
-      if(err.code===1) toast(lang==='ar'?'❌ السماح بالموقع مطلوب من إعدادات المتصفح':'❌ Allow location in browser settings','er');
+    },
+    err=>{
+      console.log('GPS error code:',err.code, err.message);
+      if(err.code===1) toast(lang==='ar'?'❌ يرجى السماح بالوصول للموقع من إعدادات المتصفح':'❌ Allow location access in browser settings','er');
+      else if(err.code===2) toast(lang==='ar'?'❌ تعذر تحديد الموقع، تأكد من تفعيل GPS':'❌ Cannot get location, enable GPS','er');
+      else if(err.code===3) toast(lang==='ar'?'❌ انتهت مهلة تحديد الموقع، حاول مجدداً':'❌ Location timeout, try again','er');
       else toast(t('loc_err'),'er');
-    },{enableHighAccuracy:true,timeout:12000,maximumAge:0});
-  });
+    },
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  );
 }
 
 function renderPuStatus(req){
@@ -1899,6 +1947,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('c-qr-btn').onclick=showMyQR;
   $id('c-exit').onclick=()=>{ cCustomer=null; showScreen('s-splash'); };
   $id('c-req-btn')?.addEventListener('click',requestPickup);
+  // re-bind after resetPickupUI recreates button
+  $id('c-pu-area')?.addEventListener('click',e=>{ if(e.target.id==='c-req-btn') requestPickup(); });
   $id('myqr-close').onclick=()=>$id('qrm').classList.remove('on');
   $id('qrm').onclick=e=>{ if(e.target===$id('qrm')) $id('qrm').classList.remove('on'); };
 });
