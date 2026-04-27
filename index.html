@@ -14,6 +14,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="GLINT">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
 :root{
@@ -48,6 +51,12 @@ html,body{height:100%;overflow:hidden;background:var(--bk);color:var(--tx);font-
   border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* ── LANG BTN ── */
+/* PWA Install Banner */
+#install-banner{position:fixed;bottom:calc(70px + var(--B));left:12px;right:12px;
+  background:linear-gradient(135deg,#1a1000,#261800);border:1px solid var(--g);
+  border-radius:16px;padding:14px 16px;z-index:7776;
+  display:none;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+#install-banner.on{display:flex}
 #LB{position:fixed;z-index:7777;bottom:calc(18px + var(--B));right:14px;
   background:var(--s2);border:1px solid var(--br);border-radius:22px;
   padding:7px 14px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;
@@ -302,6 +311,17 @@ html[dir=ltr] #LB{right:auto;left:14px}
 
 <!-- LANG BTN -->
 <button id="LB" onclick="toggleLang()">🌐 EN</button>
+
+<!-- PWA INSTALL BANNER -->
+<div id="install-banner">
+  <span style="font-size:28px">📲</span>
+  <div style="flex:1">
+    <div style="font-size:13px;font-weight:700;color:var(--g)" id="ib-ttl">ثبّت التطبيق</div>
+    <div style="font-size:11px;color:var(--mu);margin-top:2px" id="ib-sub">للحصول على إشعارات أفضل</div>
+  </div>
+  <button id="ib-install" style="background:var(--g);color:#000;border:none;border-radius:10px;padding:9px 16px;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;cursor:pointer">تثبيت</button>
+  <button id="ib-close" style="background:transparent;border:none;color:var(--mu);font-size:18px;cursor:pointer;padding:4px">✕</button>
+</div>
 
 <!-- LOADING -->
 <div id="lov"><div class="spin"></div><div style="font-size:12px;color:var(--mu)">جاري التحميل...</div></div>
@@ -636,6 +656,33 @@ html[dir=ltr] #LB{right:auto;left:14px}
 <script>
 'use strict';
 // ═══════════════════════════════════════════════════
+//  PWA INSTALL
+// ═══════════════════════════════════════════════════
+let _deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredPrompt = e;
+  // أظهر البانر بعد 3 ثواني
+  setTimeout(() => {
+    const b = document.getElementById('install-banner');
+    if(b) b.classList.add('on');
+  }, 3000);
+});
+
+window.addEventListener('appinstalled', () => {
+  const b = document.getElementById('install-banner');
+  if(b) b.classList.remove('on');
+  _deferredPrompt = null;
+  const lang = localStorage.getItem('glint_lang') || 'ar';
+  // toast will be available after boot
+  setTimeout(() => {
+    if(typeof toast === 'function')
+      toast(lang === 'ar' ? '✅ تم تثبيت التطبيق!' : '✅ App installed!', 'ok');
+  }, 500);
+});
+
+// ═══════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════
 const FB_CFG = {
@@ -882,16 +929,32 @@ function toast(msg, type=''){
   beep();
 }
 
-function beep(){
+function beep(freq=880, dur=0.2, vol=0.8){
   try{
     const ac=new(window.AudioContext||window.webkitAudioContext)();
     const o=ac.createOscillator(), g=ac.createGain();
     o.connect(g); g.connect(ac.destination);
-    o.frequency.value=880;
-    g.gain.setValueAtTime(.15,ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.15);
-    o.start(); o.stop(ac.currentTime+.15);
+    o.type='square'; // أقوى من sine
+    o.frequency.value=freq;
+    g.gain.setValueAtTime(vol, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+dur);
+    o.start(ac.currentTime);
+    o.stop(ac.currentTime+dur+0.05);
   }catch(e){}
+}
+
+function playAlarm(){
+  // نغمة تنبيه قوية ومتكررة — 5 مرات
+  const pattern=[
+    {f:1200,d:0.15,v:1.0, t:0.0},
+    {f:900, d:0.15,v:1.0, t:0.2},
+    {f:1200,d:0.15,v:1.0, t:0.4},
+    {f:900, d:0.15,v:1.0, t:0.6},
+    {f:1400,d:0.3, v:1.0, t:0.8},
+  ];
+  pattern.forEach(p=>setTimeout(()=>beep(p.f,p.d,p.v), p.t*1000));
+  // اهتزاز قوي ومتكرر
+  if(navigator.vibrate) navigator.vibrate([400,150,400,150,400,150,600]);
 }
 
 // ═══════════════════════════════════════════════════
@@ -1905,18 +1968,16 @@ function showNotifPrompt(){
 }
 
 function sendNotif(title,body){
-  // صوت تنبيه متكرر وقوي
-  for(let i=0;i<3;i++) setTimeout(()=>beep(),i*300);
-  // اهتزاز إذا متاح
-  if(navigator.vibrate) navigator.vibrate([300,100,300,100,500]);
+  playAlarm();
   // إشعار النظام
   if(notifGranted){
     try{
       const n=new Notification(title,{
         body,
         requireInteraction:true,
-        tag:'glint-pickup',
-        vibrate:[300,100,300,100,300]
+        tag:'glint-pickup-'+Date.now(), // tag مختلف لكل إشعار — يمنع الكتم
+        vibrate:[500,200,500,200,500],
+        silent:false
       });
       n.onclick=()=>{window.focus();n.close();};
     }catch(e){}
@@ -1929,6 +1990,22 @@ function sendNotif(title,body){
 // ═══════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   boot();
+
+  // PWA Install buttons
+  document.getElementById('ib-install')?.addEventListener('click', async () => {
+    const b = document.getElementById('install-banner');
+    if(!_deferredPrompt){ 
+      toast(lang==='ar'?'افتح القائمة ← أضف للشاشة الرئيسية':'Open menu → Add to Home Screen');
+      return;
+    }
+    _deferredPrompt.prompt();
+    const {outcome} = await _deferredPrompt.userChoice;
+    if(outcome === 'accepted') b?.classList.remove('on');
+    _deferredPrompt = null;
+  });
+  document.getElementById('ib-close')?.addEventListener('click', () => {
+    document.getElementById('install-banner')?.classList.remove('on');
+  });
 
   // Splash
   $id('rb-owner').onclick=()=>showScreen('s-owner-login');
