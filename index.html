@@ -1603,15 +1603,12 @@ async function workerLogin(){
 }
 
 async function workerLogout(){
-  if(currentWorker) setWorkerOnline(false);
-  clearWorkerSession();
-  // احذف FCM token من Firebase عند الخروج
-  if(currentWorker && fcmToken){
-    rdb.ref('glint/workers/'+currentWorker.id+'/fcmToken').remove().catch(()=>{});
-    rdb.ref('glint/workers/'+currentWorker.id+'/online').set(false).catch(()=>{});
+  if(currentWorker){
+    setWorkerOnline(false);
+    if(fcmToken) rdb.ref('glint/workers/'+currentWorker.id+'/fcmToken').remove().catch(()=>{});
   }
+  clearWorkerSession();
   currentWorker=null; workerOnline=false; activeJob=null; fcmToken=null;
-  await fauth.signOut().catch(()=>{}); currentFbUser=null;
   document.getElementById('online-tog').className='tog off';
   document.getElementById('online-dot').className='odot';
   document.getElementById('online-lbl').textContent=t('offline');
