@@ -698,6 +698,8 @@ const FB_CFG = {
 const OPH = 'd6a4044c5c1becd15f8d7f2611e0a9177403cf1b254aba90aca80f1434e47ef3';
 const WASHES_FOR_FREE = 10;
 const MAX_KM = 7;
+const WORKER_URL = 'https://glint-fcm.shadowman605.workers.dev';
+const WORKER_SECRET = 'GlintWorker2024!';
 
 // ═══════════════════════════════════════════════════
 //  STATE
@@ -1937,19 +1939,51 @@ function showMyQR(){
 let notifGranted=false;
 async function reqNotifPerm(){
   if(!('Notification' in window)) return;
-  if(Notification.permission==='granted'){ notifGranted=true; return; }
-  if(Notification.permission==='denied'){
-    // أظهر زر للعامل يطلب منه تفعيل الإشعارات يدوياً
-    showNotifPrompt();
+  if(Notification.permission==='granted'){
+    notifGranted=true;
+    await getFCMToken();
     return;
   }
-  // اطلب الإذن
+  if(Notification.permission==='denied'){ showNotifPrompt(); return; }
   try{
     const p=await Notification.requestPermission();
     notifGranted=p==='granted';
-    if(notifGranted) toast(lang==='ar'?'🔔 تم تفعيل الإشعارات':'🔔 Notifications enabled','ok');
-    else showNotifPrompt();
+    if(notifGranted){
+      toast(lang==='ar'?'🔔 تم تفعيل الإشعارات':'🔔 Notifications enabled','ok');
+      await getFCMToken();
+    } else showNotifPrompt();
   }catch(e){}
+}
+
+async function getFCMToken(){
+  try{
+    if(!firebase.messaging) return;
+    const messaging = firebase.messaging();
+    const VAPID = 'BNRwtvZQ_RJy5otWDHipfqjkDIeK_GfWnY7_Uh_naeCDn5UrE9umGuhebHb7LheLK2FwgNAJDvrVXOBidxs2CR4';
+    // سجّل Service Worker
+    let swReg;
+    try{
+      swReg = await navigator.serviceWorker.register('/glint/firebase-messaging-sw.js');
+      await navigator.serviceWorker.ready;
+    }catch(e){}
+    const token = await messaging.getToken({vapidKey: VAPID, serviceWorkerRegistration: swReg});
+    if(token){
+      fcmTok = token;
+      // احفظ الـ token مع بيانات العامل
+      if(cWorker && rdb){
+        await rdb.ref('glint/workers/'+cWorker.id+'/fcmToken').set(token);
+        await rdb.ref('glint/workers/'+cWorker.id+'/fcmUpdated').set(Date.now());
+      }
+      console.log('FCM token saved ✅');
+    }
+    // استقبل الإشعارات وقت التطبيق مفتوح
+    messaging.onMessage(payload=>{
+      const t=payload.notification?.title||'GLINT';
+      const b=payload.notification?.body||'';
+      playAlarm();
+      toast('🔔 '+t+' — '+b,'yay');
+    });
+  }catch(e){ console.warn('FCM token:', e.message); }
 }
 
 function showNotifPrompt(){
@@ -1967,22 +2001,40 @@ function showNotifPrompt(){
   sec.insertBefore(banner,sec.firstChild);
 }
 
+async function sendFCMviaWorker(title, body, token){
+  try{
+    await fetch(WORKER_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token,title,body,secret:WORKER_SECRET})
+    });
+  }catch(e){ console.warn('FCM Worker:', e.message); }
+}
+
+async function sendFCMtoAllWorkers(title, body){
+  const targets=Object.values(workers).filter(w=>w.online&&w.fcmToken);
+  for(const w of targets) await sendFCMviaWorker(title, body, w.fcmToken);
+  // أيضاً أرسل للعامل الحالي إذا عنده token
+  if(fcmTok && cWorker && !targets.find(w=>w.id===cWorker.id)){
+    sendFCMviaWorker(title, body, fcmTok);
+  }
+}
+
 function sendNotif(title,body){
   playAlarm();
-  // إشعار النظام
   if(notifGranted){
     try{
       const n=new Notification(title,{
-        body,
-        requireInteraction:true,
-        tag:'glint-pickup-'+Date.now(), // tag مختلف لكل إشعار — يمنع الكتم
-        vibrate:[500,200,500,200,500],
-        silent:false
+        body,requireInteraction:true,
+        tag:'glint-pickup-'+Date.now(),
+        vibrate:[500,200,500,200,500],silent:false
       });
       n.onclick=()=>{window.focus();n.close();};
     }catch(e){}
   }
   toast('🔔 '+title+' — '+body,'yay');
+  // أرسل FCM عبر Worker — يصل حتى لو الشاشة مقفلة
+  sendFCMtoAllWorkers(title, body);
 }
 
 // ═══════════════════════════════════════════════════
