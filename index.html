@@ -1702,11 +1702,13 @@ function renderPickupList(reqs){
   const avail=Object.values(reqs).filter(r=>r.status==='waiting'&&!r.workerId);
   if(avail.length>_lastPuCount&&_lastPuCount>=0){
     const newest=avail.sort((a,b)=>b.timestamp-a.timestamp)[0];
-    if(newest&&tsNow()-newest.timestamp<15000) sendNotif(
-          lang==='ar'?'🚗 طلب استلام جديد!':'🚗 New Pickup Request!',
-          newest.customerName+(newest.carPlate?' · 🔢 '+newest.carPlate:'')
-        );
-      }
+    if(newest&&tsNow()-newest.timestamp<20000){
+      const title=lang==='ar'?'🚗 طلب استلام جديد!':'🚗 New Pickup Request!';
+      const body=newest.customerName+(newest.carPlate?' · 🔢 '+newest.carPlate:'');
+      sendNotif(title,body);
+      startRepeatAlarm(newest.id,title,body);
+    }
+  }
   _lastPuCount=avail.length;
   if(!avail.length){ el.innerHTML=`<div class="empty"><div class="empty-ico">🟢</div><div>${t('no_reqs')}</div></div>`; return; }
   el.innerHTML=avail.map(r=>{
@@ -2034,33 +2036,51 @@ async function reqNotifPerm(){
 
 async function getFCMToken(){
   try{
-    if(!firebase.messaging) return;
-    const messaging = firebase.messaging();
-    const VAPID = 'BNRwtvZQ_RJy5otWDHipfqjkDIeK_GfWnY7_Uh_naeCDn5UrE9umGuhebHb7LheLK2FwgNAJDvrVXOBidxs2CR4';
+    // تأكد من تحميل Firebase Messaging
+    if(typeof firebase==='undefined'||!firebase.messaging) return;
+    const VAPID='BNRwtvZQ_RJy5otWDHipfqjkDIeK_GfWnY7_Uh_naeCDn5UrE9umGuhebHb7LheLK2FwgNAJDvrVXOBidxs2CR4';
+
     // سجّل Service Worker
-    let swReg;
-    try{
-      swReg = await navigator.serviceWorker.register('/glint/firebase-messaging-sw.js');
-      await navigator.serviceWorker.ready;
-    }catch(e){}
-    const token = await messaging.getToken({vapidKey: VAPID, serviceWorkerRegistration: swReg});
-    if(token){
-      fcmTok = token;
-      // احفظ الـ token مع بيانات العامل
-      if(cWorker && rdb){
-        await rdb.ref('glint/workers/'+cWorker.id+'/fcmToken').set(token);
-        await rdb.ref('glint/workers/'+cWorker.id+'/fcmUpdated').set(Date.now());
+    let swReg=null;
+    if('serviceWorker' in navigator){
+      try{
+        swReg=await navigator.serviceWorker.register('/glint/firebase-messaging-sw.js',{scope:'/glint/'});
+        await navigator.serviceWorker.ready;
+        console.log('SW registered ✅');
+      }catch(swErr){
+        console.warn('SW register failed:',swErr.message);
       }
-      console.log('FCM token saved ✅');
     }
+
+    const messaging=firebase.messaging();
+    const token=await messaging.getToken({
+      vapidKey:VAPID,
+      ...(swReg?{serviceWorkerRegistration:swReg}:{})
+    });
+
+    if(token){
+      fcmTok=token;
+      if(cWorker&&rdb){
+        rdb.ref('glint/workers/'+cWorker.id+'/fcmToken').set(token);
+        rdb.ref('glint/workers/'+cWorker.id+'/fcmUpdated').set(Date.now());
+      }
+      console.log('✅ FCM token:',token.slice(0,20)+'...');
+      toast(lang==='ar'?'🔔 الإشعارات جاهزة':'🔔 Notifications ready','ok');
+    }else{
+      console.warn('No FCM token returned');
+    }
+
     // استقبل الإشعارات وقت التطبيق مفتوح
     messaging.onMessage(payload=>{
-      const t=payload.notification?.title||'GLINT';
-      const b=payload.notification?.body||'';
+      const title=payload.notification?.title||'GLINT';
+      const body=payload.notification?.body||'';
       playAlarm();
-      toast('🔔 '+t+' — '+b,'yay');
+      if(navigator.vibrate) navigator.vibrate([500,200,500,200,500]);
+      toast('🔔 '+title+' — '+body,'yay');
     });
-  }catch(e){ console.warn('FCM token:', e.message); }
+  }catch(e){
+    console.warn('FCM setup failed:',e.message);
+  }
 }
 
 function showNotifPrompt(){
@@ -2083,37 +2103,43 @@ let _alarmInterval = null;
 let _alarmReqId = null;
 
 function startRepeatAlarm(reqId, title, body){
-  // لا تبدأ alarm جديد إذا نفس الطلب
-  if(_alarmReqId === reqId) return;
+  if(_alarmReqId===reqId) return; // نفس الطلب — لا تكرر
   stopRepeatAlarm();
-  _alarmReqId = reqId;
-  let count = 0;
-  const maxRepeats = 12; // أقصى 12 مرة = دقيقة كاملة
-  _alarmInterval = setInterval(async ()=>{
+  _alarmReqId=reqId;
+  let count=0;
+  const MAX=20; // 20 × 6 ثواني = دقيقتان
+
+  _alarmInterval=setInterval(async()=>{
     count++;
-    // تحقق من Firebase هل الطلب قُبل
-    const snap = await rdb.ref('pickupRequests/'+reqId).once('value');
-    const req = snap.val();
-    if(!req || req.status !== 'waiting' || req.workerId || count >= maxRepeats){
-      stopRepeatAlarm();
-      return;
-    }
-    // الطلب لم يُقبل — كرر التنبيه
+    if(count>=MAX){ stopRepeatAlarm(); return; }
+
+    // تحقق من Firebase — هل الطلب قُبل؟
+    try{
+      const snap=await rdb.ref('pickupRequests/'+reqId+'/status').once('value');
+      const status=snap.val();
+      if(!status||status!=='waiting'){ stopRepeatAlarm(); return; }
+    }catch(e){}
+
+    // الطلب لا يزال ينتظر — نبّه مرة أخرى
     playAlarm();
+    if(navigator.vibrate) navigator.vibrate([500,200,500,200,600]);
+
+    // إشعار النظام
     if(notifGranted){
       try{
-        new Notification(title, {
-          body: (lang==='ar'?'⏳ في انتظار القبول · ':'⏳ Waiting · ')+body,
+        new Notification(title,{
+          body:(lang==='ar'?'⏳ لم يُقبل بعد · ':'⏳ Still waiting · ')+body,
           requireInteraction:true,
-          tag:'glint-repeat-'+reqId,
+          tag:'glint-alarm', // نفس الـ tag يستبدل القديم
           renotify:true,
           silent:false
         });
       }catch(e){}
     }
-    // أرسل FCM مرة ثانية
-    sendFCMtoAllWorkers(title, (lang==='ar'?'⏳ في انتظار القبول · ':'⏳ Waiting · ')+body);
-  }, 5000); // كل 5 ثواني
+
+    // FCM للشاشة المقفلة
+    sendFCMtoAllWorkers(title,(lang==='ar'?'⏳ لم يُقبل بعد · ':'⏳ Still waiting · ')+body);
+  },6000); // كل 6 ثواني
 }
 
 function stopRepeatAlarm(){
