@@ -1345,9 +1345,27 @@ function openCustDetail(id){
       <div class="det-box"><div class="det-v">${cy}/${WASHES_FOR_FREE}</div><div class="det-l">${t('c_drp_l')}</div></div>
       <div class="det-box"><div class="det-v">${c.freeWashes||0}</div><div class="det-l">${t('c_fr_l')}</div></div>
     </div>
-    <div style="background:var(--s3);border:1px solid var(--br2);border-radius:12px;padding:12px;margin-bottom:12px">
+    <div style="background:var(--s3);border:1px solid var(--br2);border-radius:12px;padding:12px;margin-bottom:8px">
       <div style="font-size:10px;color:var(--mu);margin-bottom:4px">${t('det_phone')}</div>
       <div style="font-size:15px;font-weight:700">${c.phone||'—'}</div>
+    </div>
+    <div style="background:var(--s3);border:1px solid var(--br);border-radius:12px;padding:13px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--mu);letter-spacing:1px;font-weight:700;text-transform:uppercase">${lang==='ar'?'🚗 السيارات المسجلة':'🚗 Registered Cars'}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--g)">${(c.cars||[]).filter(x=>x.active).length} ${lang==='ar'?'سيارة':'car(s)'}</div>
+      </div>
+      ${!(c.cars||[]).length
+        ? `<div style="font-size:12px;color:var(--mu);text-align:center;padding:8px">${lang==='ar'?'لا توجد سيارات مسجلة':'No cars registered'}</div>`
+        : (c.cars||[]).map((car,ci)=>`
+          <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--br2)">
+            <span style="font-size:18px">${car.active?'🚗':'🚫'}</span>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:700">${car.plate}</div>
+              <div style="font-size:10px;color:var(--mu);margin-top:2px">${car.active?(lang==='ar'?'نشطة':'Active'):(lang==='ar'?'محذوفة':'Removed')}</div>
+            </div>
+            ${car.active?`<button onclick="removeCar('${c.id}',${ci})" style="background:var(--s4);border:1px solid var(--br2);border-radius:8px;padding:5px 10px;color:var(--er);font-size:11px;cursor:pointer;font-family:Cairo,sans-serif">${lang==='ar'?'حذف':'Remove'}</button>`:''}
+          </div>`).join('')
+      }
     </div>
     <div style="font-size:11px;color:var(--mu);letter-spacing:1px;font-weight:700;margin-bottom:9px;text-transform:uppercase">${t('det_edit')}</div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -2063,7 +2081,11 @@ async function getFCMToken(){
     let swReg=null;
     if('serviceWorker' in navigator){
       try{
-        swReg=await navigator.serviceWorker.register('/glint/firebase-messaging-sw.js',{scope:'/glint/'});
+        // جرّب المسار الصحيح حسب موقع الملف
+      const swPath = location.pathname.includes('/glint/')
+        ? '/glint/firebase-messaging-sw.js'
+        : '/firebase-messaging-sw.js';
+      swReg=await navigator.serviceWorker.register(swPath, {scope: swPath.replace('firebase-messaging-sw.js','')});
         await navigator.serviceWorker.ready;
         console.log('SW registered ✅');
       }catch(swErr){
