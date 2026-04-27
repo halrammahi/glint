@@ -1708,14 +1708,16 @@ function renderPickupList(reqs){
   if(!avail.length){ el.innerHTML=`<div class="empty"><div class="empty-ico">🟢</div><div>${t('no_reqs')}</div></div>`; return; }
   el.innerHTML=avail.map(r=>{
     const age=Math.round((tsNow()-r.timestamp)/60000);
-    const pkCust=customers[r.customerId];
-    const pkPlates=(pkCust?.cars||[]).filter(car=>car.active).map(car=>car.plate);
+    // اعرض اللوحة المختارة من الطلب أو كل اللوحات
+    const plateDisplay = r.carPlate
+      ? `<div style="margin-top:6px"><span style="font-size:12px;font-weight:700;background:rgba(201,168,76,.15);border:1px solid var(--g);border-radius:7px;padding:4px 10px;color:var(--g2)">🔢 ${r.carPlate}</span></div>`
+      : '';
     return `<div class="pk-card">
       <div style="display:flex;justify-content:space-between">
         <div>
           <div style="font-size:15px;font-weight:700">🚗 ${r.customerName}</div>
           <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.customerPhone||''}</div>
-          ${pkPlates.length?`<div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">${pkPlates.map(p=>`<span style="font-size:11px;font-weight:700;background:rgba(201,168,76,.15);border:1px solid var(--g);border-radius:6px;padding:3px 8px;color:var(--g2)">${p}</span>`).join('')}</div>`:''} 
+          ${plateDisplay}
         </div>
         <div style="font-size:11px;color:var(--mu)">${lang==='ar'?'منذ ':''} ${age} ${lang==='ar'?'دق':'min ago'}</div>
       </div>
@@ -1895,17 +1897,40 @@ function requestPickup(){
       const ws=snap.val()||{};
       const free=Object.values(ws).filter(w=>w.online);
       if(!free.length){ toast(t('no_worker'),'er'); return; }
-      doPickup();
+      selectCarThenPickup();
     });
     return;
   }
 
   if(!onlineWorkers.length){ toast(t('no_worker'),'er'); return; }
-  doPickup();
+  selectCarThenPickup();
 }
 
-function doPickup(){
+function selectCarThenPickup(){
+  if(!navigator.geolocation){ toast(t('no_gps'),'er'); return; }
+  const activeCars=(cCustomer.cars||[]).filter(c=>c.active);
+  if(activeCars.length>1){
+    showCarSelector(activeCars);
+  } else {
+    doPickup(activeCars[0]?.plate||'');
+  }
+}
+
+function showCarSelector(cars){
+  const area=$id('c-pu-area');
+  area.innerHTML=`<div style="background:var(--s3);border:1px solid var(--br);border-radius:14px;padding:14px">
+    <div style="font-size:13px;font-weight:700;color:var(--g);margin-bottom:11px">${lang==='ar'?'🚗 اختر السيارة التي تريد غسلها:':'🚗 Select car to wash:'}</div>
+    ${cars.map(car=>`<button onclick="doPickup('${car.plate}')" style="width:100%;margin-bottom:8px;padding:13px;background:var(--s2);border:1.5px solid var(--br);border-radius:12px;color:var(--tx);font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;text-align:right;display:flex;align-items:center;gap:10px"><span style="font-size:18px">🚗</span><span style="flex:1">${car.plate}</span><span style="font-size:12px;color:var(--g)">←</span></button>`).join('')}
+    <button onclick="resetPickupUI()" style="width:100%;padding:10px;background:transparent;border:1px solid var(--br2);border-radius:10px;color:var(--mu);font-family:Cairo,sans-serif;font-size:13px;cursor:pointer;margin-top:4px">${lang==='ar'?'إلغاء':'Cancel'}</button>
+  </div>`;
+}
+
+async function doPickup(selectedPlate){
   if(!cCustomer) return;
+  // تأكد من anonymous auth قبل الكتابة
+  try{
+    if(fauth && !fbUser) await fauth.signInAnonymously();
+  }catch(e){}
   toast(t('loc_loading'));
   navigator.geolocation.getCurrentPosition(
     pos=>{
@@ -1916,6 +1941,7 @@ function doPickup(){
         customerId:cCustomer.id,
         customerName:cCustomer.name,
         customerPhone:cCustomer.phone||'',
+        carPlate:selectedPlate||'',
         lat:latitude,
         lng:longitude,
         timestamp:tsNow(),
@@ -1923,12 +1949,12 @@ function doPickup(){
       }).then(()=>{
         toast(t('loc_sent'),'ok');
         renderPuStatus({status:'waiting'});
-      }).catch(()=>{
+      }).catch(err=>{
+        console.error('Pickup write error:',err);
         toast(lang==='ar'?'❌ فشل الإرسال، تحقق من الاتصال':'❌ Failed to send, check connection','er');
       });
     },
     err=>{
-      console.log('GPS error code:',err.code, err.message);
       if(err.code===1) toast(lang==='ar'?'❌ يرجى السماح بالوصول للموقع من إعدادات المتصفح':'❌ Allow location access in browser settings','er');
       else if(err.code===2) toast(lang==='ar'?'❌ تعذر تحديد الموقع، تأكد من تفعيل GPS':'❌ Cannot get location, enable GPS','er');
       else if(err.code===3) toast(lang==='ar'?'❌ انتهت مهلة تحديد الموقع، حاول مجدداً':'❌ Location timeout, try again','er');
