@@ -287,10 +287,10 @@ html[dir="ltr"] .hist-dp{margin-right:0;margin-left:auto}
 </style>
 
 <script>
-// دوال أساسية تعمل فوراً بدون انتظار Firebase
+// دوال بسيطة تعمل فوراً
 function show(id){
   document.querySelectorAll('.scr').forEach(function(s){s.classList.remove('on');});
-  var el = document.getElementById('scr-'+id);
+  var el=document.getElementById('scr-'+id);
   if(el) el.classList.add('on');
 }
 function goLogin(r){
@@ -299,13 +299,14 @@ function goLogin(r){
   else show('cust');
 }
 function toggleLang(){
-  var lang = localStorage.getItem('glint_lang')||'ar';
-  lang = lang==='ar'?'en':'ar';
-  localStorage.setItem('glint_lang',lang);
-  var r=document.getElementById('html-root');
-  r.lang=lang; r.dir=lang==='ar'?'rtl':'ltr';
+  var lg=localStorage.getItem('glint_lang')||'ar';
+  lg=lg==='ar'?'en':'ar';
+  localStorage.setItem('glint_lang',lg);
+  var root=document.getElementById('html-root');
+  if(root){root.lang=lg;root.dir=lg==='ar'?'rtl':'ltr';}
   var btn=document.getElementById('lang-btn');
-  if(btn) btn.textContent=lang==='ar'?'🌐 EN':'🌐 عربي';
+  if(btn) btn.textContent=lg==='ar'?'🌐 EN':'🌐 عربي';
+  if(typeof applyLang==='function') applyLang();
 }
 </script>
 </head>
@@ -641,7 +642,8 @@ function toggleLang(){
 // ═══════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════
-const OWNER_EMAIL = 'owner@glint.internal';
+// كلمة مرور المالك — SHA256 hash (لا توجد كلمة مرور في الكود)
+const OWNER_PW_HASH = 'd6a4044c5c1becd15f8d7f2611e0a9177403cf1b254aba90aca80f1434e47ef3';
 const MAX_KM = 7;
 
 // ═══════════════════════════════════════════
@@ -946,7 +948,10 @@ function goLogin(r){
 function loadScript(src){
   return new Promise((res,rej)=>{
     const s=document.createElement('script');
-    s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);
+    s.src=src;
+    s.onload=res;
+    s.onerror=(e)=>rej(new Error('Failed to load: '+src));
+    document.head.appendChild(s);
   });
 }
 
@@ -967,7 +972,10 @@ async function boot(){
     await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
     await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js');
     await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js');
-    await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+    // messaging اختياري — لا يشتغل محلياً لكن يشتغل على HTTPS
+    await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js').catch(()=>{
+      console.warn('FCM not loaded — OK on localhost');
+    });
     firebase.initializeApp({
       apiKey:'AIzaSyB-3VMi7aw7D8ISJW9CWS3EQX0OUgPJWDA',
       authDomain:'glintloyalty.firebaseapp.com',
@@ -989,9 +997,9 @@ async function boot(){
     initSync(qrId);
     setTimeout(restoreWorkerSession, 1800);
   }catch(e){
-    console.error('Boot error:',e);
+    console.error('Boot error:', e.message||e);
     showLoad(false);
-    toast(t('conn_err'),'err');
+    toast('❌ خطأ: '+(e.message||'تحقق من الاتصال بالإنترنت'), 'err');
   }
 }
 
@@ -1033,7 +1041,10 @@ function initSync(qrId){
 }
 
 function saveDB(){
-  if(!currentFbUser){ toast(t('conn_err'),'err'); return; }
+  // يشتغل مع anonymous auth أو worker auth
+  if(!currentFbUser && !currentWorker){
+    toast(t('conn_err'),'err'); return;
+  }
   const updates = {};
   Object.values(db.customers).forEach(c=>{ updates['glint/customers/'+c.id]=c; });
   Object.values(db.workers).forEach(w=>{ updates['glint/workers/'+w.id]=w; });
@@ -1093,28 +1104,19 @@ async function ownerLogin(){
   const err=document.getElementById('olerr');
   if(!pw){ err.textContent=t('wrong_pass'); return; }
   err.textContent=''; showLoad(true);
-  try{
-    await fauth.signInWithEmailAndPassword(OWNER_EMAIL, pw);
+  // قارن كلمة المرور بالـ hash المحفوظ — بدون Firebase Auth
+  const hash = await sha256(pw);
+  if(hash === OWNER_PW_HASH){
+    // تسجيل دخول anonymous في Firebase للوصول للبيانات
+    try{
+      await fauth.signInAnonymously();
+    }catch(e){ /* اشتغل حتى بدون auth */ }
     showLoad(false);
     renderCustList(); renderWorkerList(); renderStats();
     show('owner');
-  }catch(e){
-    if(e.code==='auth/user-not-found'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'){
-      // أول مرة — إنشاء حساب المالك
-      try{
-        await fauth.createUserWithEmailAndPassword(OWNER_EMAIL, pw);
-        showLoad(false);
-        renderCustList(); renderWorkerList(); renderStats();
-        show('owner');
-      }catch(e2){
-        showLoad(false);
-        err.textContent=e2.code==='auth/weak-password'?'❌ كلمة المرور قصيرة جداً (٦ أحرف على الأقل)':t('wrong_pass');
-      }
-    }else if(e.code==='auth/wrong-password'||e.code==='auth/invalid-login-credentials'){
-      showLoad(false); err.textContent=t('wrong_pass');
-    }else{
-      showLoad(false); err.textContent='❌ '+e.message;
-    }
+  } else {
+    showLoad(false);
+    err.textContent=t('wrong_pass');
   }
 }
 
@@ -1575,7 +1577,11 @@ async function workerLogin(){
   try{
     await fauth.signInWithEmailAndPassword(wEmail, wPass);
   }catch(e){
-    showLoad(false); err.textContent=t('wrong_worker'); return;
+    showLoad(false);
+    // أي خطأ في Auth = اسم أو رقم سري خاطئ
+    console.log('Worker login error:', e.code);
+    err.textContent=t('wrong_worker');
+    return;
   }
   const pinHash=await sha256('glint'+pin);
   const w=Object.values(db.workers).find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.pinHash===pinHash);
@@ -1637,7 +1643,7 @@ function setWorkerOnline(v){
 // ═══════════════════════════════════════════
 //  QR SCANNER
 // ═══════════════════════════════════════════
-let html5QrCode = null;
+// html5QrCode declared above
 
 async function openQRScanner(){
   const statusEl = document.getElementById('qrs-status');
@@ -1867,11 +1873,11 @@ function acceptPickup(reqId){
     renderJobStep();
     toast(t('accept_ok'),'ok');
     // أرسل إشعار للزبون بأن العامل في الطريق
-    rdb.ref('notifications/'+r.customerId).push({{
+    rdb.ref('notifications/'+r.customerId).push({
       type:'accepted', worker:currentWorker.name, time:Date.now()
-    }});
-  }});
-}}
+    });
+  });
+}
 
 // ═══════════════════════════════════════════
 //  JOB FLOW
@@ -2154,7 +2160,84 @@ function showMyQR(){
 // ═══════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('DOMContentLoaded', function(){
+  boot();
+
+  // ربط الأزرار بـ event listeners بدلاً من الاعتماد على onclick في HTML
+  // هذا يضمن عمل الأزرار بعد تحميل الـ script كاملاً
+  var btnMap = {
+    'ol-btn'       : ownerLogin,
+    'wl-btn'       : workerLogin,
+    'cl-btn'       : custLogin,
+    'o-logout-btn' : ownerLogout,
+    'w-logout-btn' : workerLogout,
+    'c-exit-btn'   : function(){ show('splash'); },
+    'online-tog'   : toggleOnline,
+    'ac-btn'       : addCustomer,
+    'aw-btn'       : addWorker,
+    'w-add-c-btn'  : wAddCustomer,
+    'w-srch-btn'   : wManualScan,
+    'w-confirm-btn': confirmWash,
+    'w-cancel-btn' : cancelScan,
+    'w-redeem-btn' : redeemFree,
+    'c-qr-btn'     : showMyQR,
+    'c-req-btn'    : requestPickup,
+    'qrs-close'    : closeQRScanner,
+    'myqr-close'   : function(){ document.getElementById('myqr-modal').classList.remove('on'); },
+    'print-btn'    : printQR,
+    'wj-btn'       : jobNextStep,
+    'wj-map-btn'   : openJobMap,
+    'role-mgr'     : function(){ selectRole('manager'); },
+    'role-wrk'     : function(){ selectRole('worker'); },
+    'lang-btn'     : toggleLang,
+  };
+  Object.keys(btnMap).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('click', btnMap[id]);
+  });
+
+  // Period buttons
+  ['today','week','month','all'].forEach(function(p,i){
+    var el=document.getElementById('spb'+i);
+    if(el) el.addEventListener('click',function(){ setPeriod(p); });
+  });
+
+  // Owner tabs
+  for(var i=0;i<5;i++){
+    (function(idx){
+      var el=document.getElementById('otab'+idx);
+      if(el) el.addEventListener('click',function(){ otab(idx); });
+    })(i);
+  }
+
+  // Enter key on inputs
+  var enterMap = {
+    'opw'      : ownerLogin,
+    'wname-inp': function(){ if(event.key==='Enter') workerLogin(); },
+    'cust-phone': custLogin,
+    'wsinp'    : wManualScan,
+  };
+  ['opw','cust-phone'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('keyup',function(e){ if(e.key==='Enter'){ if(id==='opw') ownerLogin(); else custLogin(); } });
+  });
+  var wni=document.getElementById('wname-inp');
+  if(wni) wni.addEventListener('keyup',function(e){ if(e.key==='Enter') workerLogin(); });
+
+  // PIN boxes
+  [0,1,2,3].forEach(function(i){
+    var p=document.getElementById('p'+i);
+    if(p) p.addEventListener('input',function(){ pinMove(i); });
+    var wp=document.getElementById('wp'+i);
+    if(wp) wp.addEventListener('input',function(){ wpinMove(i); });
+  });
+  var p3=document.getElementById('p3');
+  if(p3) p3.addEventListener('keyup',function(e){ if(e.key==='Enter') workerLogin(); });
+
+  // Search
+  var csrch=document.getElementById('csrch');
+  if(csrch) csrch.addEventListener('input',renderCustList);
+});
 </script>
 </body>
 </html>
