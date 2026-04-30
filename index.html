@@ -337,10 +337,21 @@ html[dir=ltr] #LB{right:auto;left:14px}
     <div class="sp-tag">CAR WASH · LOYALTY</div>
   </div>
   <div class="sp-roles">
-    <button class="role-btn" id="rb-owner"><span style="font-size:21px">👑</span><span style="flex:1;text-align:right" id="rl-o">مالك المحطة</span><span style="color:var(--mu)">←</span></button>
     <button class="role-btn" id="rb-worker"><span style="font-size:21px">🧹</span><span style="flex:1;text-align:right" id="rl-w">العامل</span><span style="color:var(--mu)">←</span></button>
     <button class="role-btn" id="rb-cust"><span style="font-size:21px">🚗</span><span style="flex:1;text-align:right" id="rl-c">الزبون</span><span style="color:var(--mu)">←</span></button>
   </div>
+  <!-- حقل سري مخفي — يظهر بعد النقر 5 مرات على الشعار -->
+  <div id="secret-field" style="display:none;margin-top:16px;width:100%;max-width:300px">
+    <input id="secret-inp" type="password"
+      style="width:100%;padding:12px 15px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:var(--tx);font-family:Cairo,sans-serif;font-size:14px;outline:none;text-align:center;letter-spacing:3px"
+      placeholder="••••••••"/>
+  </div>
+  <!-- زر المالك — يظهر فقط بعد إدخال كلمة المرور الصحيحة -->
+  <button class="role-btn" id="rb-owner" style="display:none;margin-top:8px;width:100%;max-width:300px">
+    <span style="font-size:21px">👑</span>
+    <span style="flex:1;text-align:right" id="rl-o">مالك المحطة</span>
+    <span style="color:var(--mu)">←</span>
+  </button>
 </div>
 
 <!-- ══ OWNER LOGIN ══ -->
@@ -714,6 +725,36 @@ let wOnline = false, jobActive = null;
 let statPd = 'today', workerRole = 'manager';
 let html5QR = null, fcmTok = null;
 let lang = localStorage.getItem('glint_lang') || 'ar';
+
+// ── حماية من محاولات الدخول المتكررة ──
+const MAX_TRIES = 3;
+const LOCK_MS   = 999 * 24 * 60 * 60 * 1000; // دائم حتى يفكه المالك
+
+function _gA(k){ try{ return JSON.parse(localStorage.getItem('_la'+k)||'{}'); }catch(e){ return {}; } }
+function _sA(k,d){ localStorage.setItem('_la'+k, JSON.stringify(d)); }
+
+function isLocked(k){
+  const d=_gA(k);
+  if(!d.lock) return null;
+  // للمالك: يفك تلقائياً بعد 15 دقيقة
+  if(k==='OWN'){
+    const rem=(15*60*1000)-(Date.now()-d.lock);
+    if(rem<=0){ localStorage.removeItem('_la'+k); return null; }
+    return Math.ceil(rem/60000);
+  }
+  // للعامل: مقفل دائماً حتى يفكه المالك
+  return -1; // -1 = مقفل دائم
+}
+
+function failLogin(k){
+  const d=_gA(k);
+  d.n=(d.n||0)+1;
+  if(d.n>=MAX_TRIES) d.lock=Date.now();
+  _sA(k,d);
+  return Math.max(0,MAX_TRIES-d.n);
+}
+
+function okLogin(k){ localStorage.removeItem('_la'+k); }
 
 // ═══════════════════════════════════════════════════
 //  TRANSLATIONS
@@ -1427,6 +1468,9 @@ function openWorkerDetail(id){
       <div style="font-size:26px;font-weight:900;color:var(--g)">${all} ${t('washes')}</div>
     </div>
     <button class="btn btn-or btn-w" onclick="resetWorkerPIN('${w.id}')">${t('reset_pin')}</button>
+    <button class="btn btn-bl btn-w" style="margin-top:6px" onclick="unlockWorker('${w.name}')">
+      🔓 ${lang==='ar'?'فتح الحساب المقفل':'Unlock Account'}
+    </button>
     <button class="btn btn-er btn-w" style="margin-top:6px" onclick="deleteWorker('${w.id}')">${t('del_worker')}</button>
     <button class="btn btn-dim btn-w" style="margin-top:6px" onclick="closeDet()">${t('close')}</button>`;
   $id('det-modal').classList.add('on');
@@ -1442,6 +1486,13 @@ function editWashes(id, delta){
   rdb.ref('glint/customers/'+id).update({drops:newDrops,totalWashes:newTotal,history:hist});
   toast(delta>0?t('add_wash_ok'):t('rem_wash_ok'),'ok');
   setTimeout(()=>openCustDetail(id),500);
+}
+
+function unlockWorker(name){
+  const wk='W'+btoa(name.toLowerCase()).replace(/[^a-z0-9]/gi,'').slice(0,8);
+  localStorage.removeItem('_la'+wk);
+  toast((lang==='ar'?'🔓 تم فتح حساب ':'🔓 Unlocked: ')+name,'ok');
+  closeDet();
 }
 
 function addCarToExisting(custId){
@@ -1576,10 +1627,19 @@ async function workerLogin(){
   const pin=[0,1,2,3].map(i=>$id('wp'+i).value).join('');
   const err=$id('wlerr');
   if(!name||pin.length!==4){ err.textContent=t('wrong_w'); return; }
+  const wk='W'+btoa(name.toLowerCase()).replace(/[^a-z0-9]/gi,'').slice(0,8);
+  const wR=isLocked(wk);
+  if(wR!==null){
+    err.textContent='🔒 '+(lang==='ar'
+      ?'الحساب مقفل — تواصل مع المالك لفتحه'
+      :'Account locked — contact owner to unlock');
+    return;
+  }
   err.textContent=''; showLoad(true);
   const pinHash=await sha256('glint'+pin);
   const w=Object.values(workers).find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.pinHash===pinHash);
   if(w){
+    okLogin(wk);
     try{ if(fauth) await fauth.signInAnonymously(); }catch(e){}
     cWorker=w; showLoad(false);
     $id('wname').value=''; [0,1,2,3].forEach(i=>$id('wp'+i).value='');
@@ -1591,7 +1651,10 @@ async function workerLogin(){
     reqNotifPerm();
   }else{
     showLoad(false);
-    err.textContent=t('wrong_w');
+    const wl=failLogin(wk);
+    err.textContent=t('wrong_w')+(wl>0
+      ?' ('+(lang==='ar'?wl+' محاولة متبقية':wl+' attempts left')+')'
+      :' — 🔒 '+(lang==='ar'?'الحساب مقفل، تواصل مع المالك':'Account locked, contact owner'));
   }
 }
 
@@ -2255,6 +2318,57 @@ function sendNotif(title,body){
 // ═══════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   boot();
+
+  // ── الشعار السري — اضغط 5 مرات على الشعار لإظهار حقل كلمة المرور ──
+  let _tapCount=0, _tapTimer=null;
+  const logo=$id('s-splash')?.querySelector('.sp-nm');
+  if(logo){
+    logo.style.cursor='default';
+    logo.addEventListener('click',()=>{
+      _tapCount++;
+      clearTimeout(_tapTimer);
+      if(_tapCount>=5){
+        _tapCount=0;
+        const sf=$id('secret-field');
+        if(sf){ sf.style.display='block'; $id('secret-inp')?.focus(); }
+      } else {
+        _tapTimer=setTimeout(()=>_tapCount=0, 2000);
+      }
+    });
+  }
+
+  // ── تحقق من كلمة السر السرية ──
+  $id('secret-inp')?.addEventListener('input', async function(){
+    const val=this.value;
+    if(val.length<4) return;
+    const h=await sha256(val);
+    if(h===OPH){
+      // كلمة مرور صحيحة — أظهر زر المالك
+      this.value='';
+      $id('secret-field').style.display='none';
+      const ob=$id('rb-owner');
+      if(ob){
+        ob.style.display='flex';
+        ob.style.animation='fadeUp .4s ease forwards';
+        // اخفِه تلقائياً بعد 30 ثانية إذا لم يُضغط عليه
+        setTimeout(()=>{ if(ob.style.display!=='none') ob.style.display='none'; },30000);
+      }
+    } else if(val.length>=12){
+      // كلمة مرور خاطئة وطويلة
+      this.value='';
+      this.style.borderColor='var(--er)';
+      setTimeout(()=>this.style.borderColor='',1000);
+    }
+  });
+
+  // ── عند الضغط على Enter في الحقل السري ──
+  $id('secret-inp')?.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){
+      this.value='';
+      $id('secret-field').style.display='none';
+      $id('rb-owner').style.display='none';
+    }
+  });
 
   // PWA Install buttons
   document.getElementById('ib-install')?.addEventListener('click', async () => {
