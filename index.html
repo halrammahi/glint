@@ -1074,6 +1074,9 @@ function applyLang(){
   Object.keys(ids).forEach(id=>setText(id,ids[id]));
   setAttr('wname','placeholder',lang==='ar'?'الاسم...':'Name...');
   setAttr('wsinp','placeholder',lang==='ar'?'أو رقم الزبون / هاتفه...':'Or customer ID / phone...');
+  // تأكد أن زر المالك مخفي دائماً عند تحديث اللغة
+  const _ob=$id('rb-owner');
+  if(_ob && _ob.style.display!=='flex') _ob.style.display='none';
   // Update dynamic content
   if(cCustomer) renderCustDash(cCustomer);
   if($id('s-owner').classList.contains('on')){ renderCustList(); renderWorkerList(); renderStats(); }
@@ -1093,6 +1096,9 @@ function loadScript(src){
 
 async function boot(){
   showLoad(true);
+  // تأكد أن زر المالك مخفي عند كل تشغيل
+  const _ob=$id('rb-owner');
+  if(_ob) _ob.style.display='none';
   applyLang();
   try{
     // Firebase محملة مسبقاً في <head>
