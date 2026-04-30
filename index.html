@@ -1494,8 +1494,16 @@ function editWashes(id, delta){
   setTimeout(()=>openCustDetail(id),500);
 }
 
+// دالة موحدة لتوليد مفتاح العامل — تعمل مع العربي والإنجليزي
+function workerKey(name){
+  // مجموع رموز الأحرف كـ string — ثابت دائماً
+  let s=0;
+  for(let i=0;i<name.length;i++) s=(s+name.charCodeAt(i))%999999;
+  return s.toString();
+}
+
 function unlockWorker(name){
-  const wk='W'+btoa(name.toLowerCase()).replace(/[^a-z0-9]/gi,'').slice(0,8);
+  const wk='W'+workerKey(name);
   localStorage.removeItem('_la'+wk);
   toast((lang==='ar'?'🔓 تم فتح حساب ':'🔓 Unlocked: ')+name,'ok');
   closeDet();
@@ -1633,7 +1641,7 @@ async function workerLogin(){
   const pin=[0,1,2,3].map(i=>$id('wp'+i).value).join('');
   const err=$id('wlerr');
   if(!name||pin.length!==4){ err.textContent=t('wrong_w'); return; }
-  const wk='W'+btoa(name.toLowerCase()).replace(/[^a-z0-9]/gi,'').slice(0,8);
+  const wk='W'+workerKey(name);
   const wR=isLocked(wk);
   if(wR!==null){
     err.textContent='🔒 '+(lang==='ar'
