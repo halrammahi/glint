@@ -844,6 +844,7 @@ ar:{
   add_wash_ok:'➕ أُضيفت غسلة', rem_wash_ok:'➖ حُذفت غسلة', no_free:'لا توجد غسلات مجانية',
   today_lbl:'اليوم', week_lbl:'هذا الأسبوع', month_lbl:'هذا الشهر',
   det_day:'اليوم', det_week:'الأسبوع', det_month:'الشهر', det_year:'السنة',
+  ph_wname:'الاسم...', ph_cphone:'07xxxxxxxxx', ph_nc_name:'اسم الزبون...', ph_nc_phone:'رقم الهاتف...', ph_nc_plate:'رقم اللوحة', ph_nw_name:'اسم العامل...', ph_search:'بحث...', ph_wsinp:'أو رقم الزبون...',
 },
 en:{
   sp_tag:'CAR WASH · LOYALTY SYSTEM', rl_o:'Business Owner', rl_w:'Worker', rl_c:'Customer',
@@ -929,6 +930,7 @@ en:{
   add_wash_ok:'➕ Wash added', rem_wash_ok:'➖ Wash removed', no_free:'No free washes available',
   today_lbl:'Today', week_lbl:'This Week', month_lbl:'This Month',
   det_day:'Today', det_week:'This Week', det_month:'This Month', det_year:'This Year',
+  ph_wname:'Name...', ph_cphone:'Phone...', ph_nc_name:'Customer name...', ph_nc_phone:'Phone number...', ph_nc_plate:'Plate number', ph_nw_name:'Worker name...', ph_search:'Search...', ph_wsinp:'Customer ID / phone...',
 }};
 const t = k => (TR[lang]||TR.ar)[k] || TR.ar[k] || k;
 
@@ -1072,8 +1074,8 @@ function applyLang(){
     'c-hist-ttl':t('c_hist_ttl'),'myqr-close':t('close'),
   };
   Object.keys(ids).forEach(id=>setText(id,ids[id]));
-  setAttr('wname','placeholder',lang==='ar'?'الاسم...':'Name...');
-  setAttr('wsinp','placeholder',lang==='ar'?'أو رقم الزبون / هاتفه...':'Or customer ID / phone...');
+  const _phs={'wname':t('ph_wname'),'cphone':t('ph_cphone'),'nc-name':t('ph_nc_name'),'nc-phone':t('ph_nc_phone'),'nc-plate':t('ph_nc_plate'),'nw-name':t('ph_nw_name'),'csrch':t('ph_search'),'wsinp':t('ph_wsinp'),'wc-name':t('ph_nc_name'),'wc-phone':t('ph_nc_phone'),'wc-plate':t('ph_nc_plate')};
+  Object.keys(_phs).forEach(id=>setAttr(id,'placeholder',_phs[id]));
   // تأكد أن زر المالك مخفي دائماً عند تحديث اللغة
   const _ob=$id('rb-owner');
   if(_ob && _ob.style.display!=='flex') _ob.style.display='none';
