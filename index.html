@@ -728,33 +728,46 @@ let lang = localStorage.getItem('glint_lang') || 'ar';
 
 // ── حماية من محاولات الدخول المتكررة ──
 const MAX_TRIES = 3;
-const LOCK_MS   = 999 * 24 * 60 * 60 * 1000; // دائم حتى يفكه المالك
 
+// المالك — localStorage فقط (محلي)
 function _gA(k){ try{ return JSON.parse(localStorage.getItem('_la'+k)||'{}'); }catch(e){ return {}; } }
 function _sA(k,d){ localStorage.setItem('_la'+k, JSON.stringify(d)); }
 
-function isLocked(k){
-  const d=_gA(k);
+function isLockedOwner(){
+  const d=_gA('OWN');
   if(!d.lock) return null;
-  // للمالك: يفك تلقائياً بعد 15 دقيقة
-  if(k==='OWN'){
-    const rem=(15*60*1000)-(Date.now()-d.lock);
-    if(rem<=0){ localStorage.removeItem('_la'+k); return null; }
-    return Math.ceil(rem/60000);
-  }
-  // للعامل: مقفل دائماً حتى يفكه المالك
-  return -1; // -1 = مقفل دائم
+  const rem=(15*60*1000)-(Date.now()-d.lock);
+  if(rem<=0){ localStorage.removeItem('_laOWN'); return null; }
+  return Math.ceil(rem/60000);
 }
-
-function failLogin(k){
-  const d=_gA(k);
-  d.n=(d.n||0)+1;
+function failOwner(){
+  const d=_gA('OWN'); d.n=(d.n||0)+1;
   if(d.n>=MAX_TRIES) d.lock=Date.now();
-  _sA(k,d);
-  return Math.max(0,MAX_TRIES-d.n);
+  _sA('OWN',d); return Math.max(0,MAX_TRIES-d.n);
 }
+function okOwner(){ localStorage.removeItem('_laOWN'); }
 
-function okLogin(k){ localStorage.removeItem('_la'+k); }
+// العامل — Firebase (يشمل كل الأجهزة)
+async function isLockedWorker(workerId){
+  if(!rdb) return false;
+  const snap=await rdb.ref('glint/workers/'+workerId+'/locked').once('value');
+  return snap.val()===true;
+}
+async function failWorker(workerId){
+  if(!rdb) return MAX_TRIES;
+  const snap=await rdb.ref('glint/workers/'+workerId+'/loginFails').once('value');
+  const fails=(snap.val()||0)+1;
+  await rdb.ref('glint/workers/'+workerId+'/loginFails').set(fails);
+  if(fails>=MAX_TRIES){
+    await rdb.ref('glint/workers/'+workerId+'/locked').set(true);
+    return 0;
+  }
+  return MAX_TRIES-fails;
+}
+async function okWorker(workerId){
+  if(!rdb) return;
+  await rdb.ref('glint/workers/'+workerId).update({locked:false, loginFails:0});
+}
 
 // ═══════════════════════════════════════════════════
 //  TRANSLATIONS
@@ -1504,9 +1517,10 @@ function workerKey(name){
   return s.toString();
 }
 
-function unlockWorker(name){
-  const wk='W'+workerKey(name);
-  localStorage.removeItem('_la'+wk);
+async function unlockWorker(name){
+  const w=Object.values(workers).find(x=>x.name===name);
+  if(!w) return;
+  await rdb.ref('glint/workers/'+w.id).update({locked:false, loginFails:0});
   toast((lang==='ar'?'🔓 تم فتح حساب ':'🔓 Unlocked: ')+name,'ok');
   closeDet();
 }
@@ -1643,19 +1657,18 @@ async function workerLogin(){
   const pin=[0,1,2,3].map(i=>$id('wp'+i).value).join('');
   const err=$id('wlerr');
   if(!name||pin.length!==4){ err.textContent=t('wrong_w'); return; }
-  const wk='W'+workerKey(name);
-  const wR=isLocked(wk);
-  if(wR!==null){
-    err.textContent='🔒 '+(lang==='ar'
-      ?'الحساب مقفل — تواصل مع المالك لفتحه'
-      :'Account locked — contact owner to unlock');
-    return;
-  }
   err.textContent=''; showLoad(true);
   const pinHash=await sha256('glint'+pin);
   const w=Object.values(workers).find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.pinHash===pinHash);
+  // تحقق من القفل في Firebase
   if(w){
-    okLogin(wk);
+    const locked=await isLockedWorker(w.id);
+    if(locked){
+      showLoad(false);
+      err.textContent='🔒 '+(lang==='ar'?'الحساب مقفل — تواصل مع المالك':'Account locked — contact owner');
+      return;
+    }
+    await okWorker(w.id);
     try{ if(fauth) await fauth.signInAnonymously(); }catch(e){}
     cWorker=w; showLoad(false);
     $id('wname').value=''; [0,1,2,3].forEach(i=>$id('wp'+i).value='');
@@ -1667,10 +1680,17 @@ async function workerLogin(){
     reqNotifPerm();
   }else{
     showLoad(false);
-    const wl=failLogin(wk);
-    err.textContent=t('wrong_w')+(wl>0
-      ?' ('+(lang==='ar'?wl+' محاولة متبقية':wl+' attempts left')+')'
-      :' — 🔒 '+(lang==='ar'?'الحساب مقفل، تواصل مع المالك':'Account locked, contact owner'));
+    // سجّل المحاولة الفاشلة في Firebase
+    // نحتاج اسم العامل للبحث أولاً
+    const wFail=Object.values(workers).find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(wFail){
+      const wl=await failWorker(wFail.id);
+      err.textContent=t('wrong_w')+(wl>0
+        ?' ('+(lang==='ar'?wl+' محاولة متبقية':wl+' left')+')'
+        :' — 🔒 '+(lang==='ar'?'مقفل، تواصل مع المالك':'Locked, contact owner'));
+    } else {
+      err.textContent=t('wrong_w');
+    }
   }
 }
 
