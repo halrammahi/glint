@@ -302,6 +302,18 @@ html[dir=ltr] #LB{right:auto;left:14px}
 /* ── EMPTY ── */
 .empty{text-align:center;padding:44px 20px;color:var(--mu)}
 .empty-ico{font-size:42px;margin-bottom:9px}
+/* ── CHAT ── */
+.chat-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:5500;flex-direction:column}
+.chat-modal.on{display:flex}
+.chat-hdr{background:var(--s2);border-bottom:1px solid var(--br);padding:calc(var(--T)+12px) 16px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.chat-bubble{max-width:75%;padding:10px 13px;border-radius:16px;font-size:13px;line-height:1.6}
+.chat-bubble.me{background:var(--g3);border:1px solid var(--br);border-bottom-right-radius:4px;align-self:flex-end;color:var(--tx)}
+.chat-bubble.them{background:var(--s3);border:1px solid var(--br2);border-bottom-left-radius:4px;align-self:flex-start;color:var(--tx)}
+html[dir=ltr] .chat-bubble.me{border-bottom-right-radius:16px;border-bottom-left-radius:4px}
+html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-right-radius:4px}
+.chat-time{font-size:10px;color:var(--mu);margin-top:3px}
+.chat-inp-row{background:var(--s2);border-top:1px solid var(--br2);padding:10px 12px calc(10px + var(--B));display:flex;gap:8px;flex-shrink:0}
 /* ── PRINT ── */
 @media print{body *{visibility:hidden}#pzone,#pzone *{visibility:visible}
   #pzone{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff}}
@@ -570,6 +582,8 @@ html[dir=ltr] #LB{right:auto;left:14px}
         <div class="jc-ico" id="wj-ico">🚗</div>
         <div class="jc-ttl" id="wj-ttl"></div>
         <div class="jc-sub" id="wj-sub"></div>
+        <div id="wj-note" style="display:none;background:var(--s4);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:var(--mu)"></div>
+        <button id="wj-call" style="display:none;width:100%;margin-top:6px;padding:11px;background:#14532d;border:1px solid var(--ok);border-radius:12px;color:#86efac;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer">📞 اتصل بالزبون</button>
         <div class="flow-steps" id="wj-steps"></div>
         <button class="btn btn-g btn-w" id="wj-btn"></button>
         <button class="btn btn-bl btn-w" id="wj-map" style="display:none;margin-top:6px">🗺️ افتح الخريطة</button>
@@ -619,7 +633,10 @@ html[dir=ltr] #LB{right:auto;left:14px}
       <div style="font-size:14px;font-weight:700;margin-bottom:4px" id="c-pu-ttl">🚗 طلب استلام سيارتك</div>
       <div style="font-size:12px;color:var(--mu);margin-bottom:12px" id="c-pu-sub">يأتيك العامل إلى موقعك (خلال 7 كم)</div>
       <div id="c-pu-area">
-        <button class="btn btn-g btn-w" id="c-req-btn">📍 اطلب الاستلام من موقعي</button>
+        <input class="inp" type="text" id="c-loc-note"
+        placeholder="وصف موقعك (مثال: أمام المدخل الرئيسي)..."
+        style="margin-bottom:8px;font-size:13px"/>
+      <button class="btn btn-g btn-w" id="c-req-btn">📍 اطلب الاستلام من موقعي</button>
       </div>
     </div>
     <div class="card">
@@ -653,6 +670,23 @@ html[dir=ltr] #LB{right:auto;left:14px}
 </div></div>
 
 <!-- PRINT -->
+<!-- CHAT MODAL -->
+<div class="chat-modal" id="chat-modal">
+  <div class="chat-hdr">
+    <button onclick="closeChat()" style="background:transparent;border:none;color:var(--mu);font-size:20px;cursor:pointer">✕</button>
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:700" id="chat-title">💬 محادثة</div>
+      <div style="font-size:11px;color:var(--mu)" id="chat-sub"></div>
+    </div>
+  </div>
+  <div class="chat-msgs" id="chat-msgs"></div>
+  <div class="chat-inp-row">
+    <input class="inp" type="text" id="chat-inp" placeholder="اكتب رسالة..."
+      style="margin:0;flex:1;font-size:14px;padding:11px 14px"/>
+    <button onclick="sendChatMsg()" class="btn btn-g" style="padding:11px 16px;font-size:20px">➤</button>
+  </div>
+</div>
+
 <div id="pzone" style="display:none">
   <div style="text-align:center;font-family:sans-serif;padding:40px;background:#fff">
     <div style="font-size:24px;font-weight:900;letter-spacing:6px;color:#0a0a0a">GLINT</div>
@@ -1880,8 +1914,10 @@ function renderPickupList(reqs){
         </div>
         <div style="font-size:11px;color:var(--mu)">${lang==='ar'?'منذ ':''} ${age} ${lang==='ar'?'دق':'min ago'}</div>
       </div>
+      ${r.locationNote?`<div style="background:var(--s4);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:var(--mu)">📍 ${r.locationNote}</div>`:''}
       <div class="pk-btns">
         <button class="btn btn-bl" onclick="openMapUrl(${r.lat},${r.lng})">${t('map_btn')}</button>
+        ${r.customerPhone?`<button class="btn btn-ok" onclick="window.open('tel:${r.customerPhone}')">📞</button>`:''}
         <button class="btn btn-g" onclick="acceptPickup('${r.id}')">${t('accept_btn')}</button>
       </div>
     </div>`;
@@ -1901,6 +1937,7 @@ function acceptPickup(reqId){
     const r=snap.val();
     jobActive={reqId,customerId:r.customerId,customerName:r.customerName,
       customerPhone:r.customerPhone,carPlate:r.carPlate||'',
+      locationNote:r.locationNote||'',
       lat:r.lat,lng:r.lng,step:0};
     stopRepeatAlarm(); // أوقف التنبيه عند القبول
     rdb.ref('notifications/'+r.customerId).push({type:'accepted',worker:cWorker.name,time:tsNow()});
@@ -1932,6 +1969,28 @@ function renderJobStep(){
   // اعرض فقط اللوحة المختارة من الطلب
   const jPlate = jobActive.carPlate || '';
   setText('wj-sub',t(s.sK)+'\n'+jobActive.customerName+(jPlate?' · 🔢 '+jPlate:''));
+  // ملاحظة الموقع
+  const noteEl=$id('wj-note');
+  if(noteEl && jobActive.locationNote){
+    noteEl.textContent='📍 '+jobActive.locationNote;
+    noteEl.style.display='block';
+  } else if(noteEl){ noteEl.style.display='none'; }
+  // زر الاتصال
+  const callEl=$id('wj-call');
+  if(callEl && jobActive.customerPhone){
+    callEl.style.display='block';
+    callEl.textContent='📞 '+(lang==='ar'?'اتصل بالزبون':'Call Customer')+' '+jobActive.customerPhone;
+    callEl.onclick=()=>window.open('tel:'+jobActive.customerPhone);
+  } else if(callEl){ callEl.style.display='none'; }
+  // زر المحادثة
+  const chatEl=$id('wj-chat');
+  if(chatEl){
+    chatEl.style.display='block';
+    chatEl.onclick=()=>openChat(jobActive.reqId,'worker',
+      '💬 '+(lang==='ar'?'محادثة مع':'Chat with')+' '+jobActive.customerName,
+      jobActive.carPlate?'🔢 '+jobActive.carPlate:''
+    );
+  }
   setText('wj-btn',t(s.bK));
   $id('wj-steps').innerHTML=STEPS.map((st,i)=>`<div class="fs ${i<jobActive.step?'done':i===jobActive.step?'active':''}">${st.ico}</div>`).join('');
   const mb=$id('wj-map'); mb.style.display=s.map?'flex':'none'; setText('wj-map',t('open_map'));
@@ -2098,12 +2157,14 @@ async function doPickup(selectedPlate){
     pos=>{
       const {latitude,longitude}=pos.coords;
       const reqId='PK'+tsNow();
+      const locNote=$id('c-loc-note')?.value.trim()||'';
       rdb.ref('pickupRequests/'+reqId).set({
         id:reqId,
         customerId:cCustomer.id,
         customerName:cCustomer.name,
         customerPhone:cCustomer.phone||'',
         carPlate:selectedPlate||'',
+        locationNote:locNote,
         lat:latitude,
         lng:longitude,
         timestamp:tsNow(),
@@ -2254,6 +2315,49 @@ function showNotifPrompt(){
     <button onclick="reqNotifPerm();this.parentElement.remove()" style="background:var(--g);color:#000;border:none;border-radius:8px;padding:7px 12px;font-family:Cairo,sans-serif;font-size:12px;font-weight:700;cursor:pointer">${lang==='ar'?'تفعيل':'Enable'}</button>
   `;
   sec.insertBefore(banner,sec.firstChild);
+}
+
+// ══════════════════════════════════════════
+//  CHAT SYSTEM
+// ══════════════════════════════════════════
+let _chatReqId=null, _chatRole=null, _chatListener=null;
+
+function openChat(reqId, role, title, sub){
+  _chatReqId=reqId; _chatRole=role;
+  setText('chat-title', title);
+  setText('chat-sub', sub||'');
+  $id('chat-msgs').innerHTML='';
+  $id('chat-inp').value='';
+  $id('chat-modal').classList.add('on');
+  // استمع للرسائل
+  if(_chatListener) rdb.ref('chat/'+reqId).off('value',_chatListener);
+  _chatListener=rdb.ref('chat/'+reqId).on('value',snap=>{
+    const msgs=snap.val()||{};
+    const el=$id('chat-msgs');
+    el.innerHTML=Object.values(msgs).sort((a,b)=>a.ts-b.ts).map(m=>`
+      <div style="display:flex;flex-direction:column;align-items:${m.role===role?'flex-end':'flex-start'}">
+        <div class="chat-bubble ${m.role===role?'me':'them'}">${m.text}</div>
+        <div class="chat-time">${m.sender} · ${new Date(m.ts).toLocaleTimeString('ar-AE',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Dubai'})}</div>
+      </div>`).join('');
+    el.scrollTop=el.scrollHeight;
+  });
+}
+
+function closeChat(){
+  if(_chatListener && _chatReqId) rdb.ref('chat/'+_chatReqId).off('value',_chatListener);
+  _chatListener=null; _chatReqId=null;
+  $id('chat-modal').classList.remove('on');
+}
+
+async function sendChatMsg(){
+  const inp=$id('chat-inp');
+  const text=inp.value.trim();
+  if(!text||!_chatReqId) return;
+  inp.value='';
+  const sender=_chatRole==='worker'?(cWorker?.name||'العامل'):(cCustomer?.name||'الزبون');
+  await rdb.ref('chat/'+_chatReqId).push({
+    text, role:_chatRole, sender, ts:tsNow()
+  });
 }
 
 // ── نظام التنبيه المتواصل ──
@@ -2480,6 +2584,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('c-exit').onclick=()=>{ cCustomer=null; showScreen('s-splash'); };
   // استخدم event delegation فقط — منع التكرار
   $id('c-pu-area')?.addEventListener('click',e=>{ if(e.target.id==='c-req-btn') requestPickup(); });
+  $id('chat-inp')?.addEventListener('keyup',e=>{ if(e.key==='Enter') sendChatMsg(); });
   $id('myqr-close').onclick=()=>$id('qrm').classList.remove('on');
   $id('qrm').onclick=e=>{ if(e.target===$id('qrm')) $id('qrm').classList.remove('on'); };
 });
