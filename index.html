@@ -1908,7 +1908,7 @@ function renderPickupList(reqs){
     return `<div class="pk-card">
       <div style="display:flex;justify-content:space-between">
         <div>
-          <div style="font-size:15px;font-weight:700">🚗 ${r.customerName}</div>
+          <div style="font-size:15px;font-weight:700">🚗 ${r.customerName||'—'}</div>
           <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.customerPhone||''}</div>
           ${plateDisplay}
         </div>
@@ -2194,13 +2194,14 @@ function renderPuStatus(req){
   const newReqBtn=`<button class="btn btn-g btn-w" style="margin-top:11px" onclick="resetPickupUI()">${t('new_req')}</button>`;
   // أزرار المحادثة والاتصال — تظهر في كل الحالات النشطة
   const workerPhone = req.workerPhone||'';
-  const chatCallBtns=`
+  const _rid=req.id||_activeReqId();
+  const chatCallBtns=_rid?`
     <div style="display:flex;gap:8px;margin-top:10px">
-      <button onclick="openChat('${req.id||_activeReqId()}','customer','💬 ${lang==='ar'?'محادثة مع العامل':'Chat with Worker'}','')"
+      <button onclick="openChat('${_rid}','customer','💬 ${lang==='ar'?'محادثة مع العامل':'Chat with Worker'}','')"
         style="flex:1;padding:11px;background:var(--s3);border:1px solid var(--br2);border-radius:12px;color:var(--tx);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;cursor:pointer">
-        💬 ${lang==='ar'?'محادثة':'Chat'}
+        💬 ${lang==='ar'?'محادثة مع العامل':'Chat with Worker'}
       </button>
-    </div>`;
+    </div>`:'';
   const M={
     waiting:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">⏳</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_wait')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${t('pu_sent')}</div>${cancelBtn}</div>`,
     accepted:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">🚗</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_acc')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${req.workerName||''}</div>${cancelBtn}${chatCallBtns}</div>`,
