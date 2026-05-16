@@ -2336,24 +2336,32 @@ function _activeReqId(){
 let _custReqId=''; // يُحفظ عند إرسال الطلب
 
 function openChat(reqId, role, title, sub){
+  if(!reqId||!rdb){ toast('Error: no request ID','er'); return; }
   _chatReqId=reqId; _chatRole=role;
   setText('chat-title', title);
   setText('chat-sub', sub||'');
-  $id('chat-msgs').innerHTML='';
   $id('chat-inp').value='';
   $id('chat-modal').classList.add('on');
   // استمع للرسائل
   if(_chatListener) rdb.ref('chat/'+reqId).off('value',_chatListener);
-  _chatListener=rdb.ref('chat/'+reqId).on('value',snap=>{
-    const msgs=snap.val()||{};
+  
+  const renderMsgs=(msgs)=>{
     const el=$id('chat-msgs');
+    if(!msgs||Object.keys(msgs).length===0){
+      el.innerHTML=`<div style="text-align:center;color:var(--mu);padding:20px;font-size:13px">${lang==='ar'?'لا توجد رسائل بعد...':'No messages yet...'}</div>`;
+      return;
+    }
     el.innerHTML=Object.values(msgs).sort((a,b)=>a.ts-b.ts).map(m=>`
       <div style="display:flex;flex-direction:column;align-items:${m.role===role?'flex-end':'flex-start'}">
         <div class="chat-bubble ${m.role===role?'me':'them'}">${m.text}</div>
         <div class="chat-time">${m.sender} · ${new Date(m.ts).toLocaleTimeString('ar-AE',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Dubai'})}</div>
       </div>`).join('');
-    el.scrollTop=el.scrollHeight;
-  });
+    setTimeout(()=>el.scrollTop=el.scrollHeight,50);
+  };
+  
+  _chatListener=rdb.ref('chat/'+reqId).on('value',snap=>renderMsgs(snap.val()||{}));
+  // Initial render
+  rdb.ref('chat/'+reqId).once('value').then(snap=>renderMsgs(snap.val()||{}));
 }
 
 function closeChat(){
@@ -2521,6 +2529,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   // PWA Install buttons
   document.getElementById('ib-install')?.addEventListener('click', async () => {
     const b = document.getElementById('install-banner');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if(isIOS){
+      // iOS — show instructions
+      const msg=lang==='ar'
+        ?'لتثبيت التطبيق على iPhone:\n\n1. اضغط زر المشاركة ⬆️ في الأسفل\n2. اختر "إضافة إلى الشاشة الرئيسية"\n3. اضغط "إضافة"'
+        :'To install on iPhone:\n\n1. Tap Share button ⬆️ below\n2. Select "Add to Home Screen"\n3. Tap "Add"';
+      alert(msg);
+      return;
+    }
     if(!_deferredPrompt){ 
       toast(lang==='ar'?'افتح القائمة ← أضف للشاشة الرئيسية':'Open menu → Add to Home Screen');
       return;
