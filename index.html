@@ -2071,7 +2071,7 @@ function startCustNotifs(custId){
 function watchMyPickup(reqs){
   if(!cCustomer) return;
   const mine=Object.values(reqs).find(r=>r.customerId===cCustomer.id&&!['delivered','done'].includes(r.status));
-  if(mine) renderPuStatus(mine);
+  if(mine){ _custReqId=mine.id; renderPuStatus(mine); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2158,6 +2158,7 @@ async function doPickup(selectedPlate){
       const {latitude,longitude}=pos.coords;
       const reqId='PK'+tsNow();
       const locNote=$id('c-loc-note')?.value.trim()||'';
+      _custReqId=reqId;
       rdb.ref('pickupRequests/'+reqId).set({
         id:reqId,
         customerId:cCustomer.id,
@@ -2191,13 +2192,22 @@ function renderPuStatus(req){
   const area=$id('c-pu-area');
   const cancelBtn=`<button class="btn btn-er btn-w" style="margin-top:11px" onclick="cancelPickup()">${t('cancel_req')}</button>`;
   const newReqBtn=`<button class="btn btn-g btn-w" style="margin-top:11px" onclick="resetPickupUI()">${t('new_req')}</button>`;
+  // أزرار المحادثة والاتصال — تظهر في كل الحالات النشطة
+  const workerPhone = req.workerPhone||'';
+  const chatCallBtns=`
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="openChat('${req.id||_activeReqId()}','customer','💬 ${lang==='ar'?'محادثة مع العامل':'Chat with Worker'}','')"
+        style="flex:1;padding:11px;background:var(--s3);border:1px solid var(--br2);border-radius:12px;color:var(--tx);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+        💬 ${lang==='ar'?'محادثة':'Chat'}
+      </button>
+    </div>`;
   const M={
     waiting:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">⏳</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_wait')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${t('pu_sent')}</div>${cancelBtn}</div>`,
-    accepted:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">🚗</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_acc')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${req.workerName||''}</div>${cancelBtn}</div>`,
-    arrived:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">📍</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_arr')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${t('pu_arr_sub')}</div></div>`,
+    accepted:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">🚗</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_acc')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${req.workerName||''}</div>${cancelBtn}${chatCallBtns}</div>`,
+    arrived:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">📍</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_arr')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${t('pu_arr_sub')}</div>${chatCallBtns}</div>`,
     toStation:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">🏎️</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_to_sta')}</div></div>`,
-    washing:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">💧</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_washing')}</div></div>`,
-    done:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">✅</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_done')}</div></div>`,
+    washing:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">💧</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_washing')}</div>${chatCallBtns}</div>`,
+    done:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">✅</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_done')}</div>${chatCallBtns}</div>`,
     delivery:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">🚗</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_delivery')}</div></div>`,
     delivered:`<div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:7px">🎉</div><div style="font-size:14px;font-weight:700;color:var(--g)">${t('pu_del')}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${t('pu_del_sub')}</div>${newReqBtn}</div>`,
   };
@@ -2321,6 +2331,12 @@ function showNotifPrompt(){
 //  CHAT SYSTEM
 // ══════════════════════════════════════════
 let _chatReqId=null, _chatRole=null, _chatListener=null;
+
+function _activeReqId(){
+  // احصل على reqId الطلب النشط للزبون
+  return _custReqId||'';
+}
+let _custReqId=''; // يُحفظ عند إرسال الطلب
 
 function openChat(reqId, role, title, sub){
   _chatReqId=reqId; _chatRole=role;
