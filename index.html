@@ -638,6 +638,10 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
         <input class="inp" type="text" id="c-loc-note"
         placeholder="وصف موقعك (مثال: أمام المدخل الرئيسي)..."
         style="margin-bottom:8px;font-size:13px"/>
+        <div id="c-use-free-wrap" style="display:none;background:var(--g3);border:1px solid var(--g);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+          <input type="checkbox" id="c-use-free" style="width:18px;height:18px;cursor:pointer"/>
+          <label for="c-use-free" style="flex:1;font-size:13px;font-weight:600;color:var(--g);cursor:pointer" id="c-use-free-lbl">🎁 استخدم الغسلة المجانية</label>
+        </div>
       <button class="btn btn-g btn-w" id="c-req-btn">📍 اطلب الاستلام من موقعي</button>
       </div>
     </div>
@@ -1903,7 +1907,7 @@ function renderPickupList(reqs){
     return `<div class="pk-card">
       <div style="display:flex;justify-content:space-between">
         <div>
-          <div style="font-size:15px;font-weight:700">🚗 ${r.customerName||'—'}</div>
+          <div style="font-size:15px;font-weight:700">🚗 ${r.customerName||'—'} ${r.useFreeWash?'<span style="background:var(--g3);color:var(--g);padding:2px 6px;border-radius:6px;font-size:10px;margin-left:4px">🎁 مجاني</span>':''}</div>
           <div style="font-size:11px;color:var(--mu);margin-top:2px">${r.customerPhone||''}</div>
           ${plateDisplay}
         </div>
@@ -2078,6 +2082,10 @@ function renderCustDash(c){
   setText('c-tot',c.totalWashes||0); setText('c-drp',cy); setText('c-fr',c.freeWashes||0);
   $id('c-free-card').style.display=(c.freeWashes||0)>0?'block':'none';
   setText('c-free-cnt',(c.freeWashes||0)+t('c_free_cnt'));
+  // Show free wash option in pickup
+  const useFreeWrap=$id('c-use-free-wrap');
+  if(useFreeWrap) useFreeWrap.style.display=(c.freeWashes||0)>0?'flex':'none';
+  setText('c-use-free-lbl','🎁 '+(lang==='ar'?'استخدم الغسلة المجانية (متبقي '+c.freeWashes+')':'Use free wash ('+c.freeWashes+' left)'));
   setText('c-cnt',cy+'/'+WASHES_FOR_FREE);
   $id('c-bucket').innerHTML=Array.from({length:WASHES_FOR_FREE},(_,i)=>`<div class="bb-drop ${i<cy?'on':''}">${i<cy?'💧':''}</div>`).join('');
   $id('c-prog').style.width=(cy/WASHES_FOR_FREE*100)+'%';
@@ -2373,12 +2381,21 @@ function closeChat(){
 async function sendChatMsg(){
   const inp=$id('chat-inp');
   const text=inp.value.trim();
-  if(!text||!_chatReqId) return;
+  if(!text||!_chatReqId||!rdb){ 
+    if(!rdb) toast('خطأ في الاتصال','er');
+    return; 
+  }
   inp.value='';
   const sender=_chatRole==='worker'?(cWorker?.name||'العامل'):(cCustomer?.name||'الزبون');
-  await rdb.ref('chat/'+_chatReqId).push({
-    text, role:_chatRole, sender, ts:tsNow()
-  });
+  try{
+    await rdb.ref('chat/'+_chatReqId).push({
+      text, role:_chatRole, sender, ts:tsNow()
+    });
+  }catch(err){
+    console.error('Chat send error:',err);
+    toast('فشل إرسال الرسالة','er');
+    inp.value=text; // restore message
+  }
 }
 
 // ── نظام التنبيه المتواصل ──
