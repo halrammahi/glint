@@ -1,22 +1,22 @@
 <!DOCTYPE html>
-<!-- saved from url=(0045)file:///C:/Users/hayde/Downloads/index_1.html -->
-<html lang="ar" dir="rtl" id="R"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="ar" dir="rtl" id="R">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#070707">
 <title>GLINT</title>
-<script src="./index_files/html5-qrcode.min.js.download"></script>
-<script src="./index_files/qrcode.min.js.download"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- Firebase — تحميل مباشر في HEAD -->
-<script src="./index_files/firebase-app-compat.js.download"></script>
-<script src="./index_files/firebase-database-compat.js.download"></script>
-<script src="./index_files/firebase-auth-compat.js.download"></script>
-<link rel="manifest" href="file:///C:/Users/hayde/Downloads/manifest.json">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="GLINT">
-<link rel="apple-touch-icon" href="file:///C:/Users/hayde/Downloads/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
 :root{
@@ -318,7 +318,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
 @media print{body *{visibility:hidden}#pzone,#pzone *{visibility:visible}
   #pzone{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff}}
 </style>
-<script src="./index_files/firebase-messaging-compat.js.download"></script></head>
+</head>
 <body>
 
 <!-- LANG BTN -->
@@ -336,16 +336,16 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
 </div>
 
 <!-- LOADING -->
-<div id="lov" class=""><div class="spin"></div><div style="font-size:12px;color:var(--mu)">جاري التحميل...</div></div>
+<div id="lov"><div class="spin"></div><div style="font-size:12px;color:var(--mu)">جاري التحميل...</div></div>
 
 <!-- TOAST -->
-<div id="toast" class="toast">❌ خطأ في الاتصال</div>
+<div id="toast"></div>
 
 <!-- ══ SPLASH ══ -->
-<div class="S" id="s-splash">
+<div class="S on" id="s-splash">
   <div class="sp-wrap">
     <div class="sp-drop">💧</div>
-    <div class="sp-nm" style="cursor: default;">GLINT</div>
+    <div class="sp-nm">GLINT</div>
     <div class="sp-tag">CAR WASH · LOYALTY</div>
   </div>
   <div class="sp-roles">
@@ -354,7 +354,9 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
   </div>
   <!-- حقل سري مخفي — يظهر بعد النقر 5 مرات على الشعار -->
   <div id="secret-field" style="display:none;margin-top:16px;width:100%;max-width:300px">
-    <input id="secret-inp" type="password" style="width:100%;padding:12px 15px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:var(--tx);font-family:Cairo,sans-serif;font-size:14px;outline:none;text-align:center;letter-spacing:3px" placeholder="••••••••">
+    <input id="secret-inp" type="password"
+      style="width:100%;padding:12px 15px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:var(--tx);font-family:Cairo,sans-serif;font-size:14px;outline:none;text-align:center;letter-spacing:3px"
+      placeholder="••••••••"/>
   </div>
   <!-- زر المالك — يظهر فقط بعد إدخال كلمة المرور الصحيحة -->
   <button class="role-btn" id="rb-owner" style="display:none;margin-top:8px;width:100%;max-width:300px">
@@ -371,7 +373,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
       <div class="login-ttl" id="ol-ttl">OWNER LOGIN</div>
       <div class="login-sub" id="ol-sub">كلمة المرور السرية</div></div>
     <label class="lbl" id="ol-lbl">🔐 كلمة المرور</label>
-    <input class="inp" type="password" id="opw" placeholder="••••••••">
+    <input class="inp" type="password" id="opw" placeholder="••••••••"/>
     <button class="login-main" id="ol-btn">دخول</button>
     <div class="login-err" id="olerr"></div>
     <div class="back" id="ol-back">← رجوع</div>
@@ -385,13 +387,13 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
       <div class="login-ttl" id="wl-ttl">WORKER LOGIN</div>
       <div class="login-sub" id="wl-sub">اسم المستخدم + ٤ أرقام</div></div>
     <label class="lbl" id="wl-lbl1">👤 اسم العامل</label>
-    <input class="inp" type="text" id="wname" placeholder="الاسم...">
+    <input class="inp" type="text" id="wname" placeholder="الاسم..."/>
     <label class="lbl" id="wl-lbl2">🔢 الرقم السري</label>
     <div class="pins" id="pins-w">
-      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp0">
-      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp1">
-      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp2">
-      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp3">
+      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp0"/>
+      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp1"/>
+      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp2"/>
+      <input class="pin" type="password" inputmode="numeric" maxlength="1" id="wp3"/>
     </div>
     <button class="login-main" id="wl-btn">دخول</button>
     <div class="login-err" id="wlerr"></div>
@@ -400,15 +402,15 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
 </div>
 
 <!-- ══ CUST LOGIN ══ -->
-<div class="S on" id="s-cust-login" style="align-items:center;justify-content:center;background:var(--bk)">
+<div class="S" id="s-cust-login" style="align-items:center;justify-content:center;background:var(--bk)">
   <div class="login-C">
     <div class="login-hdr"><div class="login-ico">🚗</div>
       <div class="login-ttl" id="cl-ttl">بوابة الزبون</div>
       <div class="login-sub" id="cl-sub">أدخل رقم هاتفك لرؤية رصيدك</div></div>
     <label class="lbl" id="cl-lbl">📱 رقم الهاتف</label>
-    <input class="inp" type="tel" id="cphone" placeholder="07xxxxxxxxx">
+    <input class="inp" type="tel" id="cphone" placeholder="07xxxxxxxxx"/>
     <button class="login-main" id="cl-btn">دخول</button>
-    <div class="login-err" id="clerr">❌ لم يُعثر على هذا الكود</div>
+    <div class="login-err" id="clerr"></div>
     <div class="back" id="cl-back">← رجوع</div>
   </div>
 </div>
@@ -434,9 +436,9 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
     <div class="o-pg on" id="op0">
       <div class="card">
         <div class="card-ttl" id="ac-ttl">إضافة زبون جديد</div>
-        <input class="inp" type="text" id="nc-name" placeholder="اسم الزبون...">
-        <input class="inp" type="tel" id="nc-phone" placeholder="رقم الهاتف...">
-        <input class="inp" type="text" id="nc-plate" placeholder="رقم اللوحة">
+        <input class="inp" type="text" id="nc-name" placeholder="اسم الزبون..."/>
+        <input class="inp" type="tel" id="nc-phone" placeholder="رقم الهاتف..."/>
+        <input class="inp" type="text" id="nc-plate" placeholder="رقم اللوحة (مثال: أبوظبي A 12345)"/>
         <button class="btn btn-g btn-w" id="ac-btn">➕ إضافة زبون</button>
         <div class="qr-res" id="qr-res">
           <div class="qr-frame"><div id="qr-out"></div></div>
@@ -460,13 +462,13 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
     <div class="o-pg" id="op1">
       <div class="card">
         <div class="card-ttl" id="aw-ttl">إضافة عامل جديد</div>
-        <input class="inp" type="text" id="nw-name" placeholder="اسم العامل...">
+        <input class="inp" type="text" id="nw-name" placeholder="اسم العامل..."/>
         <label class="lbl" id="aw-pin-lbl">الرقم السري (٤ أرقام)</label>
         <div class="pins" style="justify-content:flex-start;gap:8px">
-          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np0">
-          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np1">
-          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np2">
-          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np3">
+          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np0"/>
+          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np1"/>
+          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np2"/>
+          <input class="pin" type="password" inputmode="numeric" maxlength="1" id="np3"/>
         </div>
         <label class="lbl" id="aw-role-lbl">🎯 الصلاحية</label>
         <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -474,8 +476,8 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
           <button class="btn btn-dim" id="role-w" style="flex:1;padding:11px;font-size:13px">🔧 عامل عادي</button>
         </div>
         <div style="font-size:11px;color:var(--mu);background:var(--s3);border-radius:10px;padding:10px;margin-bottom:10px;line-height:2">
-          <span id="role-desc-m">المسؤول: مسح QR + إضافة زبائن</span><br>
-          <span id="role-desc-w">العامل العادي: مسح QR فقط</span>
+          <span id="role-desc-m"><b style="color:var(--g)">المسؤول:</b> مسح QR + إضافة زبائن</span><br>
+          <span id="role-desc-w"><b style="color:#93c5fd">العامل العادي:</b> مسح QR فقط</span>
         </div>
         <button class="btn btn-g btn-w" id="aw-btn">➕ إضافة عامل</button>
         <div id="aw-done" style="display:none;margin-top:12px;padding:12px;background:var(--s3);border:1px solid var(--ok);border-radius:12px;text-align:center;color:#86efac;font-size:13px"></div>
@@ -483,7 +485,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
     </div>
     <!-- CUST LIST -->
     <div class="o-pg" id="op2">
-      <input class="inp" type="search" id="csrch" placeholder="بحث..." style="margin-bottom:10px">
+      <input class="inp" type="search" id="csrch" placeholder="🔍 بحث..." style="margin-bottom:10px"/>
       <div style="display:flex;justify-content:space-between;margin-bottom:8px">
         <span style="font-size:11px;color:var(--mu)" id="custs-lbl">الزبائن</span>
         <span id="cc" style="font-size:12px;font-weight:700;color:var(--g)">0</span>
@@ -524,7 +526,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
 <div class="S" id="s-worker">
   <div class="w-hdr">
     <div class="w-hdr-row">
-      <div><div class="w-nm" id="w-nm">مرحباً</div><div class="w-sb" id="w-sb"></div></div>
+      <div><div class="w-nm" id="w-nm">مرحباً</div><div class="w-sb" id="w-sb">واجهة العامل</div></div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <button class="tog off" id="w-tog"><span class="odot" id="w-odot"></span><span id="w-olbl">أوفلاين</span></button>
         <button class="out" id="w-logout">خروج ↩</button>
@@ -541,7 +543,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
         <div style="font-size:11px;color:var(--mu);margin-top:3px" id="w-scan-sub">تلقائي · بدون ضغط إضافي</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px">
-        <input class="inp" type="text" id="wsinp" placeholder="أو رقم الزبون..." style="margin:0">
+        <input class="inp" type="text" id="wsinp" placeholder="أو رقم الزبون / هاتفه..." style="margin:0"/>
         <button class="btn btn-g" id="w-srch">بحث</button>
       </div>
     </div>
@@ -549,9 +551,9 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
     <div id="w-mgr-sec" style="display:none">
       <div class="card">
         <div class="card-ttl" id="w-mgr-ttl">إضافة زبون (مسؤول)</div>
-        <input class="inp" type="text" id="wc-name" placeholder="اسم الزبون...">
-        <input class="inp" type="tel" id="wc-phone" placeholder="رقم الهاتف...">
-        <input class="inp" type="text" id="wc-plate" placeholder="رقم اللوحة">
+        <input class="inp" type="text" id="wc-name" placeholder="اسم الزبون..."/>
+        <input class="inp" type="tel" id="wc-phone" placeholder="رقم الهاتف..."/>
+        <input class="inp" type="text" id="wc-plate" placeholder="رقم اللوحة (مثال: أبوظبي A 12345)"/>
         <button class="btn btn-g btn-w" id="w-add-c-btn">➕ إضافة زبون</button>
         <div class="qr-res" id="w-qr-res"><div class="qr-frame"><div id="w-qr-out"></div></div><div style="font-size:14px;font-weight:700;color:var(--g);margin-top:9px" id="w-qr-nm"></div></div>
       </div>
@@ -633,9 +635,11 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
       <div style="font-size:14px;font-weight:700;margin-bottom:4px" id="c-pu-ttl">🚗 طلب استلام سيارتك</div>
       <div style="font-size:12px;color:var(--mu);margin-bottom:12px" id="c-pu-sub">يأتيك العامل إلى موقعك (خلال 7 كم)</div>
       <div id="c-pu-area">
-        <input class="inp" type="text" id="c-loc-note" placeholder="وصف موقعك (مثال: أمام المدخل الرئيسي)..." style="margin-bottom:8px;font-size:13px">
+        <input class="inp" type="text" id="c-loc-note"
+        placeholder="وصف موقعك (مثال: أمام المدخل الرئيسي)..."
+        style="margin-bottom:8px;font-size:13px"/>
         <div id="c-use-free-wrap" style="background:var(--g3);border:1px solid var(--g);border-radius:10px;padding:10px 12px;margin-bottom:8px;align-items:center;gap:10px;display:none">
-          <input type="checkbox" id="c-use-free" style="width:18px;height:18px;cursor:pointer">
+          <input type="checkbox" id="c-use-free" style="width:18px;height:18px;cursor:pointer"/>
           <label for="c-use-free" style="flex:1;font-size:13px;font-weight:600;color:var(--g);cursor:pointer" id="c-use-free-lbl">🎁 استخدم الغسلة المجانية</label>
         </div>
       <button class="btn btn-g btn-w" id="c-req-btn">📍 اطلب الاستلام من موقعي</button>
@@ -655,7 +659,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
     <div id="qr-reader"></div>
     <div style="text-align:center;font-size:12px;color:var(--mu);margin:10px 0 8px" id="qrs-hint">وجّه الكاميرا نحو QR Code الزبون</div>
     <div style="text-align:center;font-size:11px;color:var(--g);min-height:15px;margin-bottom:8px" id="qrs-st"></div>
-    <button style="width:100%;padding:13px;background:var(--s3);border:1px solid var(--br2);border-radius:12px;color:var(--mu);font-family:&#39;Cairo&#39;,sans-serif;font-size:14px;cursor:pointer" id="qrs-close">✕ إغلاق</button>
+    <button style="width:100%;padding:13px;background:var(--s3);border:1px solid var(--br2);border-radius:12px;color:var(--mu);font-family:'Cairo',sans-serif;font-size:14px;cursor:pointer" id="qrs-close">✕ إغلاق</button>
   </div>
 </div>
 
@@ -683,7 +687,8 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
   </div>
   <div class="chat-msgs" id="chat-msgs"></div>
   <div class="chat-inp-row">
-    <input class="inp" type="text" id="chat-inp" placeholder="اكتب رسالة..." style="margin:0;flex:1;font-size:14px;padding:11px 14px">
+    <input class="inp" type="text" id="chat-inp" placeholder="اكتب رسالة..."
+      style="margin:0;flex:1;font-size:14px;padding:11px 14px"/>
     <button onclick="sendChatMsg()" class="btn btn-g" style="padding:11px 16px;font-size:20px">➤</button>
   </div>
 </div>
@@ -2731,6 +2736,5 @@ document.addEventListener('DOMContentLoaded',()=>{
   $id('qrm').onclick=e=>{ if(e.target===$id('qrm')) $id('qrm').classList.remove('on'); };
 });
 </script>
-
-
-</body></html>
+</body>
+</html>
