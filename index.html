@@ -1225,6 +1225,58 @@ function saveJobState(){
   if(jobActive) localStorage.setItem('gjob',JSON.stringify(jobActive));
   else localStorage.removeItem('gjob');
 }
+
+function restoreActiveJob(workerId){
+  // طريقة 1: من localStorage
+  try{
+    const jobStr=localStorage.getItem('gjob');
+    if(jobStr){
+      const saved=JSON.parse(jobStr);
+      rdb.ref('pickupRequests/'+saved.reqId).once('value',snap=>{
+        const req=snap.val();
+        if(req && !['delivered','cancelled','done'].includes(req.status)){
+          jobActive=saved;
+          $id('w-pu-sec').style.display='none';
+          $id('w-job').style.display='block';
+          renderJobStep();
+          startChatNotifications(saved.reqId, 'worker');
+          toast(lang==='ar'?'🔄 تم استعادة المهمة':'🔄 Job restored','ok');
+          return;
+        } else {
+          localStorage.removeItem('gjob');
+        }
+      });
+      return; // ننتظر النتيجة
+    }
+  }catch(e){}
+  
+  // طريقة 2: من Firebase مباشرة — ابحث عن طلب مرتبط بالعامل
+  rdb.ref('pickupRequests').orderByChild('workerId').equalTo(workerId).once('value',snap=>{
+    const reqs=snap.val()||{};
+    const active=Object.values(reqs).find(r=>!['delivered','cancelled','done'].includes(r.status));
+    if(active){
+      // وجدنا طلب نشط — استعده
+      const stepMap={accepted:0,arrived:1,toStation:2,washing:3,done:4,delivery:5};
+      jobActive={
+        reqId:active.id,
+        customerId:active.customerId,
+        customerName:active.customerName,
+        customerPhone:active.customerPhone||'',
+        carPlate:active.carPlate||'',
+        locationNote:active.locationNote||'',
+        useFreeWash:active.useFreeWash||false,
+        lat:active.lat,lng:active.lng,
+        step:stepMap[active.status]||0
+      };
+      saveJobState();
+      $id('w-pu-sec').style.display='none';
+      $id('w-job').style.display='block';
+      renderJobStep();
+      startChatNotifications(active.id, 'worker');
+      toast(lang==='ar'?'🔄 تم استعادة المهمة':'🔄 Job restored','ok');
+    }
+  });
+}
 function clearWorkerSess(){ localStorage.removeItem('gws'); }
 function tryRestoreWorker(){
   try{
@@ -1240,27 +1292,8 @@ function tryRestoreWorker(){
     startPickupListener();
     reqNotifPerm();
     if(wOnline) setOnlineDB(true);
-    // استعادة المهمة النشطة
-    try{
-      const jobStr=localStorage.getItem('gjob');
-      if(jobStr){
-        const saved=JSON.parse(jobStr);
-        // تحقق من Firebase أن الطلب لا يزال نشط
-        rdb.ref('pickupRequests/'+saved.reqId).once('value',snap=>{
-          const req=snap.val();
-          if(req && !['delivered','cancelled','done'].includes(req.status)){
-            jobActive=saved;
-            $id('w-pu-sec').style.display='none';
-            $id('w-job').style.display='block';
-            renderJobStep();
-            startChatNotifications(saved.reqId, 'worker');
-            toast(lang==='ar'?'🔄 تم استعادة المهمة':'🔄 Job restored','ok');
-          } else {
-            localStorage.removeItem('gjob');
-          }
-        });
-      }
-    }catch(e){}
+    // استعادة المهمة — جرب localStorage أولاً ثم Firebase
+    restoreActiveJob(w.id);
     toast((lang==='ar'?'👋 مرحباً ':'👋 Welcome ')+w.name);
   }catch(e){}
 }
