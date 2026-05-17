@@ -2021,20 +2021,23 @@ function jobNext(){
   const statusMap={0:'arrived',1:'toStation',2:'washing',3:'done',4:'delivery'};
   if(statusMap[step]) rdb.ref('pickupRequests/'+jobActive.reqId).update({status:statusMap[step]});
   if(step===5){
-    // Done — log wash
-    const c=customers[jobActive.customerId];
-    if(c){
-      const before=Math.floor((c.drops||0)/WASHES_FOR_FREE);
-      const newDrops=(c.drops||0)+1;
-      const newTotal=(c.totalWashes||0)+1;
-      const gotFree=Math.floor(newDrops/WASHES_FOR_FREE)>before;
-      let newFree=(c.freeWashes||0)+(gotFree?1:0);
-      // خصم الغسلة المجانية إذا استُخدمت
-      if(jobActive.useFreeWash && newFree>0) newFree--;
-      const washType=jobActive.useFreeWash?'free':'pickup';
-      const hist=[{type:washType,worker:cWorker?.name||'',date:today(),time:nowStr(),ts:tsNow()}, ...(c.history||[])];
-      rdb.ref('glint/customers/'+c.id).update({drops:newDrops,totalWashes:newTotal,freeWashes:newFree,history:hist});
-    }
+    // Done — اقرأ من Firebase مباشرة (الكاش قد يكون قديم)
+    const custId=jobActive.customerId;
+    const usedFree=jobActive.useFreeWash||false;
+    rdb.ref('glint/customers/'+custId).once('value',snap=>{
+      const c=snap.val();
+      if(c){
+        const before=Math.floor((c.drops||0)/WASHES_FOR_FREE);
+        const newDrops=(c.drops||0)+1;
+        const newTotal=(c.totalWashes||0)+1;
+        const gotFree=Math.floor(newDrops/WASHES_FOR_FREE)>before;
+        let newFree=(c.freeWashes||0)+(gotFree?1:0);
+        if(usedFree && newFree>0) newFree--;
+        const washType=usedFree?'free':'pickup';
+        const hist=[{type:washType,worker:cWorker?.name||'',date:today(),time:nowStr(),ts:tsNow()}, ...(c.history||[])];
+        rdb.ref('glint/customers/'+custId).update({drops:newDrops,totalWashes:newTotal,freeWashes:newFree,history:hist});
+      }
+    });
     if(cWorker) rdb.ref('glint/workers/'+cWorker.id+'/totalScans').transaction(v=>(v||0)+1);
     rdb.ref('pickupRequests/'+jobActive.reqId).update({status:'delivered'});
 
@@ -2091,14 +2094,17 @@ function startCustNotifs(custId){
 
 function watchMyPickup(reqs){
   if(!cCustomer) return;
-  const mine=Object.values(reqs).find(r=>r.customerId===cCustomer.id&&!['delivered','done'].includes(r.status));
+  const mine=Object.values(reqs).find(r=>r.customerId===cCustomer.id&&!['delivered','done','cancelled'].includes(r.status));
   if(mine){
     _custReqId=mine.id;
-    // بدء مستمع الشات للزبون
-    if(mine.status!=='waiting' && !_chatNotifListener){
+    // بدء مستمع الشات — لأي حالة بعد waiting
+    if(mine.status!=='waiting'){
       startChatNotifications(mine.id, 'customer');
     }
     renderPuStatus(mine);
+  } else {
+    // لا يوجد طلب نشط — أوقف مستمع الشات
+    stopChatNotifications();
   }
 }
 
@@ -2411,9 +2417,13 @@ let _custReqId=''; // يُحفظ عند إرسال الطلب
 function startChatNotifications(reqId, role){
   if(!reqId || !rdb) return;
   
+  // إذا نفس الطلب ونفس الدور — لا تعيد التشغيل
+  if(_chatNotifListener && _chatReqId===reqId) return;
+  
   // أوقف المستمع القديم
   if(_chatNotifListener && _chatReqId){
     rdb.ref('chat/'+_chatReqId).off('child_added', _chatNotifListener);
+    _chatNotifListener=null;
   }
   
   _chatReqId = reqId;
