@@ -1221,6 +1221,10 @@ async function boot(){
 function saveWorkerSess(w,online){
   localStorage.setItem('gws',JSON.stringify({id:w.id,name:w.name,role:w.role,online,at:Date.now()}));
 }
+function saveJobState(){
+  if(jobActive) localStorage.setItem('gjob',JSON.stringify(jobActive));
+  else localStorage.removeItem('gjob');
+}
 function clearWorkerSess(){ localStorage.removeItem('gws'); }
 function tryRestoreWorker(){
   try{
@@ -1236,6 +1240,27 @@ function tryRestoreWorker(){
     startPickupListener();
     reqNotifPerm();
     if(wOnline) setOnlineDB(true);
+    // استعادة المهمة النشطة
+    try{
+      const jobStr=localStorage.getItem('gjob');
+      if(jobStr){
+        const saved=JSON.parse(jobStr);
+        // تحقق من Firebase أن الطلب لا يزال نشط
+        rdb.ref('pickupRequests/'+saved.reqId).once('value',snap=>{
+          const req=snap.val();
+          if(req && !['delivered','cancelled','done'].includes(req.status)){
+            jobActive=saved;
+            $id('w-pu-sec').style.display='none';
+            $id('w-job').style.display='block';
+            renderJobStep();
+            startChatNotifications(saved.reqId, 'worker');
+            toast(lang==='ar'?'🔄 تم استعادة المهمة':'🔄 Job restored','ok');
+          } else {
+            localStorage.removeItem('gjob');
+          }
+        });
+      }
+    }catch(e){}
     toast((lang==='ar'?'👋 مرحباً ':'👋 Welcome ')+w.name);
   }catch(e){}
 }
@@ -1939,6 +1964,7 @@ function acceptPickup(reqId){
       locationNote:r.locationNote||'',useFreeWash:r.useFreeWash||false,
       lat:r.lat,lng:r.lng,step:0};
     stopRepeatAlarm();
+    saveJobState();
     // بدء مستمع التنبيهات للشات
     startChatNotifications(reqId, 'worker'); // أوقف التنبيه عند القبول
     rdb.ref('notifications/'+r.customerId).push({type:'accepted',worker:cWorker.name,time:tsNow()});
@@ -1973,6 +1999,7 @@ function renderJobStep(){
       rdb.ref('pickupRequests/'+jobActive.reqId).off();
       stopChatNotifications();
       jobActive=null;
+      saveJobState();
       $id('w-job').style.display='none';
       $id('w-pu-sec').style.display='block';
       playAlarm();
@@ -2043,12 +2070,14 @@ function jobNext(){
 
     stopChatNotifications();
     jobActive=null;
+    saveJobState();
     $id('w-job').style.display='none';
     $id('w-pu-sec').style.display='block';
     toast(lang==='ar'?'🎉 تم التوصيل!':'🎉 Delivered!','yay');
     return;
   }
   jobActive.step++;
+  saveJobState();
   const toasts={1:lang==='ar'?'📍 تم إبلاغ الزبون بوصولك':'📍 Customer notified',2:lang==='ar'?'🏎️ في الطريق للمحطة':'🏎️ Heading to station',3:lang==='ar'?'🚿 بدأ الغسل':'🚿 Washing started',4:lang==='ar'?'✅ تم الغسل':'✅ Wash done',5:lang==='ar'?'🚗 في الطريق للتوصيل':'🚗 Delivering'};
   if(toasts[jobActive.step]) toast(toasts[jobActive.step],'ok');
   renderJobStep();
