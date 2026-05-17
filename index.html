@@ -2013,8 +2013,11 @@ function jobNext(){
       const newDrops=(c.drops||0)+1;
       const newTotal=(c.totalWashes||0)+1;
       const gotFree=Math.floor(newDrops/WASHES_FOR_FREE)>before;
-      const newFree=(c.freeWashes||0)+(gotFree?1:0);
-      const hist=[{type:'pickup',worker:cWorker?.name||'',date:today(),time:nowStr(),ts:tsNow()}, ...(c.history||[])];
+      let newFree=(c.freeWashes||0)+(gotFree?1:0);
+      // خصم الغسلة المجانية إذا استُخدمت
+      if(jobActive.useFreeWash && newFree>0) newFree--;
+      const washType=jobActive.useFreeWash?'free':'pickup';
+      const hist=[{type:washType,worker:cWorker?.name||'',date:today(),time:nowStr(),ts:tsNow()}, ...(c.history||[])];
       rdb.ref('glint/customers/'+c.id).update({drops:newDrops,totalWashes:newTotal,freeWashes:newFree,history:hist});
     }
     if(cWorker) rdb.ref('glint/workers/'+cWorker.id+'/totalScans').transaction(v=>(v||0)+1);
@@ -2026,13 +2029,6 @@ function jobNext(){
     $id('w-pu-sec').style.display='block';
     toast(lang==='ar'?'🎉 تم التوصيل!':'🎉 Delivered!','yay');
     return;
-  }
-  // خصم الغسلة المجانية عند الانتهاء من الغسل (step 3->4)
-  if(jobActive.step===3 && jobActive.useFreeWash){
-    const cust=customers[jobActive.customerId];
-    if(cust && (cust.freeWashes||0)>0){
-      rdb.ref('glint/customers/'+cust.id+'/freeWashes').set((cust.freeWashes||1)-1);
-    }
   }
   jobActive.step++;
   const toasts={1:lang==='ar'?'📍 تم إبلاغ الزبون بوصولك':'📍 Customer notified',2:lang==='ar'?'🏎️ في الطريق للمحطة':'🏎️ Heading to station',3:lang==='ar'?'🚿 بدأ الغسل':'🚿 Washing started',4:lang==='ar'?'✅ تم الغسل':'✅ Wash done',5:lang==='ar'?'🚗 في الطريق للتوصيل':'🚗 Delivering'};
@@ -2362,54 +2358,46 @@ let _custReqId=''; // يُحفظ عند إرسال الطلب
 // بدء مستمع دائم للتنبيهات (يُستدعى بعد قبول الطلب)
 function startChatNotifications(reqId, role){
   if(!reqId || !rdb) return;
-  console.log('🔔 Starting chat notifications for:', reqId, 'role:', role);
   
   // أوقف المستمع القديم
   if(_chatNotifListener && _chatReqId){
-    rdb.ref('chat/'+_chatReqId).off('value', _chatNotifListener);
+    rdb.ref('chat/'+_chatReqId).off('child_added', _chatNotifListener);
   }
   
-  // احفظ المعلومات
   _chatReqId = reqId;
   _chatRole = role;
-  _lastChatCount[reqId] = 0;
+  let isFirstLoad = true;
   
-  _chatNotifListener = rdb.ref('chat/'+reqId).on('value', snap=>{
-    const msgs = snap.val() || {};
-    const count = Object.keys(msgs).length;
-    const lastCount = _lastChatCount[reqId] || 0;
+  // استخدم child_added — ينطلق لكل رسالة جديدة
+  _chatNotifListener = rdb.ref('chat/'+reqId).on('child_added', snap=>{
+    if(isFirstLoad) return; // تجاهل الرسائل القديمة
     
-    console.log('📩 Chat update:', count, 'messages, last:', lastCount);
+    const msg = snap.val();
+    if(!msg) return;
     
-    // إذا زادت الرسائل وليس أول تحميل
-    if(count > lastCount && lastCount > 0){
-      const allMsgs = Object.values(msgs).sort((a,b)=>a.ts-b.ts);
-      const lastMsg = allMsgs[allMsgs.length-1];
+    // تحقق أن الرسالة من الطرف الآخر
+    if(msg.role !== role){
+      // رسالة جديدة من الطرف الآخر!
+      playAlarm();
+      toast('💬 '+(lang==='ar'?'رسالة جديدة من '+msg.sender:'New message from '+msg.sender),'yay');
       
-      console.log('🆕 New message from:', lastMsg.sender, 'role:', lastMsg.role, 'myRole:', role);
-      
-      // تحقق أن الرسالة من الطرف الآخر
-      if(lastMsg && lastMsg.role !== role){
-        console.log('✅ Message from other party - triggering notification');
-        if(!$id('chat-modal').classList.contains('on')){
-          playAlarm();
-          const title = '💬 ' + (lang==='ar'?'محادثة مع ':'Chat with ') + lastMsg.sender;
-          openChat(reqId, role, title, '');
-          toast('💬 '+(lang==='ar'?'رسالة جديدة':'New message'),'yay');
-        } else {
-          console.log('Chat already open - no notification');
-        }
-      } else {
-        console.log('❌ Message from me - skipping notification');
+      // فتح الشات تلقائياً إذا مغلق
+      if(!$id('chat-modal').classList.contains('on')){
+        const title = '💬 '+(lang==='ar'?'محادثة':'Chat');
+        openChat(reqId, role, title, '');
       }
     }
-    _lastChatCount[reqId] = count;
+  });
+  
+  // بعد تحميل الرسائل الحالية، فعّل التنبيهات
+  rdb.ref('chat/'+reqId).once('value', ()=>{ 
+    setTimeout(()=>{ isFirstLoad=false; }, 2000); 
   });
 }
 
 function stopChatNotifications(){
   if(_chatNotifListener && _chatReqId){
-    rdb.ref('chat/'+_chatReqId).off('value', _chatNotifListener);
+    rdb.ref('chat/'+_chatReqId).off('child_added', _chatNotifListener);
     _chatNotifListener = null;
   }
 }
