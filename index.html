@@ -313,7 +313,7 @@ html[dir=ltr] #LB{right:auto;left:14px}
 html[dir=ltr] .chat-bubble.me{border-bottom-right-radius:16px;border-bottom-left-radius:4px}
 html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-right-radius:4px}
 .chat-time{font-size:10px;color:var(--mu);margin-top:3px}
-.chat-inp-row{background:var(--s2);border-top:1px solid var(--br2);padding:10px 12px calc(10px + var(--B));display:flex;gap:8px;flex-shrink:0;padding-bottom:calc(20px + var(--B))}
+.chat-inp-row{background:var(--s2);border-top:1px solid var(--br2);padding:10px 12px calc(30px + var(--B)) 12px;display:flex;gap:8px;flex-shrink:0}
 /* ── PRINT ── */
 @media print{body *{visibility:hidden}#pzone,#pzone *{visibility:visible}
   #pzone{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff}}
@@ -2095,8 +2095,13 @@ function renderCustDash(c){
   setText('c-free-cnt',(c.freeWashes||0)+t('c_free_cnt'));
   // Show free wash option in pickup
   const useFreeWrap=$id('c-use-free-wrap');
-  if(useFreeWrap) useFreeWrap.style.display=(c.freeWashes||0)>0?'flex':'none';
-  setText('c-use-free-lbl','🎁 '+(lang==='ar'?'استخدم الغسلة المجانية (متبقي '+c.freeWashes+')':'Use free wash ('+c.freeWashes+' left)'));
+  if(useFreeWrap){
+    const hasFree=(c.freeWashes||0)>0;
+    useFreeWrap.style.display=hasFree?'flex':'none';
+    if(hasFree){
+      setText('c-use-free-lbl','🎁 '+(lang==='ar'?'استخدم الغسلة المجانية (متبقي '+c.freeWashes+')':'Use free wash ('+c.freeWashes+' left)'));
+    }
+  }
   setText('c-cnt',cy+'/'+WASHES_FOR_FREE);
   $id('c-bucket').innerHTML=Array.from({length:WASHES_FOR_FREE},(_,i)=>`<div class="bb-drop ${i<cy?'on':''}">${i<cy?'💧':''}</div>`).join('');
   $id('c-prog').style.width=(cy/WASHES_FOR_FREE*100)+'%';
@@ -2356,31 +2361,46 @@ let _custReqId=''; // يُحفظ عند إرسال الطلب
 
 // بدء مستمع دائم للتنبيهات (يُستدعى بعد قبول الطلب)
 function startChatNotifications(reqId, role){
-  if(!reqId || _chatNotifListener) return;
+  if(!reqId || !rdb) return;
+  console.log('🔔 Starting chat notifications for:', reqId, 'role:', role);
+  
+  // أوقف المستمع القديم
+  if(_chatNotifListener && _chatReqId){
+    rdb.ref('chat/'+_chatReqId).off('value', _chatNotifListener);
+  }
+  
+  // احفظ المعلومات
+  _chatReqId = reqId;
+  _chatRole = role;
   _lastChatCount[reqId] = 0;
-  // احفظ الدور الحالي
-  const myRole = role;
   
   _chatNotifListener = rdb.ref('chat/'+reqId).on('value', snap=>{
     const msgs = snap.val() || {};
     const count = Object.keys(msgs).length;
     const lastCount = _lastChatCount[reqId] || 0;
     
-    // إذا زادت الرسائل وليس أول تحميل وليس أنا اللي أرسلت
+    console.log('📩 Chat update:', count, 'messages, last:', lastCount);
+    
+    // إذا زادت الرسائل وليس أول تحميل
     if(count > lastCount && lastCount > 0){
-      // تحقق من آخر رسالة — هل من الطرف الآخر؟
       const allMsgs = Object.values(msgs).sort((a,b)=>a.ts-b.ts);
       const lastMsg = allMsgs[allMsgs.length-1];
       
-      if(lastMsg && lastMsg.role !== myRole){
-        // رسالة من الطرف الآخر!
+      console.log('🆕 New message from:', lastMsg.sender, 'role:', lastMsg.role, 'myRole:', role);
+      
+      // تحقق أن الرسالة من الطرف الآخر
+      if(lastMsg && lastMsg.role !== role){
+        console.log('✅ Message from other party - triggering notification');
         if(!$id('chat-modal').classList.contains('on')){
-          // الشات مغلق → افتحه مع تنبيه
           playAlarm();
-          const title = '💬 ' + (lang==='ar'?'محادثة مع ':'Chat with ') + (myRole==='worker'?lastMsg.sender:lastMsg.sender);
-          openChat(reqId, myRole, title, '');
-          toast('💬 '+(lang==='ar'?'رسالة جديدة من '+lastMsg.sender:'New message from '+lastMsg.sender),'yay');
+          const title = '💬 ' + (lang==='ar'?'محادثة مع ':'Chat with ') + lastMsg.sender;
+          openChat(reqId, role, title, '');
+          toast('💬 '+(lang==='ar'?'رسالة جديدة':'New message'),'yay');
+        } else {
+          console.log('Chat already open - no notification');
         }
+      } else {
+        console.log('❌ Message from me - skipping notification');
       }
     }
     _lastChatCount[reqId] = count;
@@ -2461,8 +2481,10 @@ async function sendChatMsg(){
   const sender=_chatRole==='worker'?(cWorker?.name||'العامل'):(cCustomer?.name||'الزبون');
   try{
     await rdb.ref('chat/'+_chatReqId).push({
-      text, role:_chatRole, sender, ts:tsNow()
+      text, role:_chatRole, sender, ts:tsNow(), notified:false
     });
+    // تنبيه بسيط للتأكيد
+    console.log('✅ Message sent to chat/'+_chatReqId);
   }catch(err){
     console.error('Chat send error:',err);
     toast('فشل إرسال الرسالة','er');
