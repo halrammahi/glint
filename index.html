@@ -313,7 +313,7 @@ html[dir=ltr] #LB{right:auto;left:14px}
 html[dir=ltr] .chat-bubble.me{border-bottom-right-radius:16px;border-bottom-left-radius:4px}
 html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-right-radius:4px}
 .chat-time{font-size:10px;color:var(--mu);margin-top:3px}
-.chat-inp-row{background:var(--s2);border-top:1px solid var(--br2);padding:10px 12px calc(10px + var(--B));display:flex;gap:8px;flex-shrink:0}
+.chat-inp-row{background:var(--s2);border-top:1px solid var(--br2);padding:10px 12px calc(10px + var(--B));display:flex;gap:8px;flex-shrink:0;padding-bottom:calc(20px + var(--B))}
 /* ── PRINT ── */
 @media print{body *{visibility:hidden}#pzone,#pzone *{visibility:visible}
   #pzone{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff}}
@@ -638,7 +638,7 @@ html[dir=ltr] .chat-bubble.them{border-bottom-left-radius:16px;border-bottom-rig
         <input class="inp" type="text" id="c-loc-note"
         placeholder="وصف موقعك (مثال: أمام المدخل الرئيسي)..."
         style="margin-bottom:8px;font-size:13px"/>
-        <div id="c-use-free-wrap" style="background:var(--g3);border:1px solid var(--g);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:none;align-items:center;gap:10px">
+        <div id="c-use-free-wrap" style="background:var(--g3);border:1px solid var(--g);border-radius:10px;padding:10px 12px;margin-bottom:8px;align-items:center;gap:10px;display:none">
           <input type="checkbox" id="c-use-free" style="width:18px;height:18px;cursor:pointer"/>
           <label for="c-use-free" style="flex:1;font-size:13px;font-weight:600;color:var(--g);cursor:pointer" id="c-use-free-lbl">🎁 استخدم الغسلة المجانية</label>
         </div>
@@ -1938,7 +1938,9 @@ function acceptPickup(reqId){
       customerPhone:r.customerPhone,carPlate:r.carPlate||'',
       locationNote:r.locationNote||'',useFreeWash:r.useFreeWash||false,
       lat:r.lat,lng:r.lng,step:0};
-    stopRepeatAlarm(); // أوقف التنبيه عند القبول
+    stopRepeatAlarm();
+    // بدء مستمع التنبيهات للشات
+    startChatNotifications(reqId, 'worker'); // أوقف التنبيه عند القبول
     rdb.ref('notifications/'+r.customerId).push({type:'accepted',worker:cWorker.name,time:tsNow()});
     $id('w-job').style.display='block';
     $id('w-pu-sec').style.display='none';
@@ -2017,18 +2019,20 @@ function jobNext(){
     }
     if(cWorker) rdb.ref('glint/workers/'+cWorker.id+'/totalScans').transaction(v=>(v||0)+1);
     rdb.ref('pickupRequests/'+jobActive.reqId).update({status:'delivered'});
-    // خصم الغسلة المجانية إذا استُخدمت
-    if(jobActive.useFreeWash){
-      const c=customers[jobActive.customerId];
-      if(c && (c.freeWashes||0)>0){
-        rdb.ref('glint/customers/'+c.id+'/freeWashes').set((c.freeWashes||1)-1);
-      }
-    }
+
+    stopChatNotifications();
     jobActive=null;
     $id('w-job').style.display='none';
     $id('w-pu-sec').style.display='block';
     toast(lang==='ar'?'🎉 تم التوصيل!':'🎉 Delivered!','yay');
     return;
+  }
+  // خصم الغسلة المجانية عند الانتهاء من الغسل (step 3->4)
+  if(jobActive.step===3 && jobActive.useFreeWash){
+    const cust=customers[jobActive.customerId];
+    if(cust && (cust.freeWashes||0)>0){
+      rdb.ref('glint/customers/'+cust.id+'/freeWashes').set((cust.freeWashes||1)-1);
+    }
   }
   jobActive.step++;
   const toasts={1:lang==='ar'?'📍 تم إبلاغ الزبون بوصولك':'📍 Customer notified',2:lang==='ar'?'🏎️ في الطريق للمحطة':'🏎️ Heading to station',3:lang==='ar'?'🚿 بدأ الغسل':'🚿 Washing started',4:lang==='ar'?'✅ تم الغسل':'✅ Wash done',5:lang==='ar'?'🚗 في الطريق للتوصيل':'🚗 Delivering'};
@@ -2342,13 +2346,53 @@ function showNotifPrompt(){
 // ══════════════════════════════════════════
 //  CHAT SYSTEM
 // ══════════════════════════════════════════
-let _chatReqId=null, _chatRole=null, _chatListener=null;
+let _chatReqId=null, _chatRole=null, _chatListener=null, _chatNotifListener=null, _lastChatCount={};
 
 function _activeReqId(){
   // احصل على reqId الطلب النشط للزبون
   return _custReqId||'';
 }
 let _custReqId=''; // يُحفظ عند إرسال الطلب
+
+// بدء مستمع دائم للتنبيهات (يُستدعى بعد قبول الطلب)
+function startChatNotifications(reqId, role){
+  if(!reqId || _chatNotifListener) return;
+  _lastChatCount[reqId] = 0;
+  // احفظ الدور الحالي
+  const myRole = role;
+  
+  _chatNotifListener = rdb.ref('chat/'+reqId).on('value', snap=>{
+    const msgs = snap.val() || {};
+    const count = Object.keys(msgs).length;
+    const lastCount = _lastChatCount[reqId] || 0;
+    
+    // إذا زادت الرسائل وليس أول تحميل وليس أنا اللي أرسلت
+    if(count > lastCount && lastCount > 0){
+      // تحقق من آخر رسالة — هل من الطرف الآخر؟
+      const allMsgs = Object.values(msgs).sort((a,b)=>a.ts-b.ts);
+      const lastMsg = allMsgs[allMsgs.length-1];
+      
+      if(lastMsg && lastMsg.role !== myRole){
+        // رسالة من الطرف الآخر!
+        if(!$id('chat-modal').classList.contains('on')){
+          // الشات مغلق → افتحه مع تنبيه
+          playAlarm();
+          const title = '💬 ' + (lang==='ar'?'محادثة مع ':'Chat with ') + (myRole==='worker'?lastMsg.sender:lastMsg.sender);
+          openChat(reqId, myRole, title, '');
+          toast('💬 '+(lang==='ar'?'رسالة جديدة من '+lastMsg.sender:'New message from '+lastMsg.sender),'yay');
+        }
+      }
+    }
+    _lastChatCount[reqId] = count;
+  });
+}
+
+function stopChatNotifications(){
+  if(_chatNotifListener && _chatReqId){
+    rdb.ref('chat/'+_chatReqId).off('value', _chatNotifListener);
+    _chatNotifListener = null;
+  }
+}
 
 function openChat(reqId, role, title, sub){
   if(!reqId||!rdb){ toast('Error: no request ID','er'); return; }
