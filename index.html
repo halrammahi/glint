@@ -2424,44 +2424,47 @@ let _custReqId=''; // يُحفظ عند إرسال الطلب
 // بدء مستمع دائم للتنبيهات (يُستدعى بعد قبول الطلب)
 function startChatNotifications(reqId, role){
   if(!reqId || !rdb) return;
-  
-  // إذا نفس الطلب — لا تعيد التشغيل
   if(_notifListener && _notifReqId===reqId) return;
   
-  // أوقف المستمع القديم
-  if(_notifListener && _notifReqId){
-    rdb.ref('chat/'+_notifReqId).off('child_added', _notifListener);
-    _notifListener=null;
-  }
+  // أوقف القديم
+  stopChatNotifications();
   
   _notifReqId = reqId;
   _notifRole = role;
-  let isFirstLoad = true;
+  let _prevCount = -1; // -1 = لم يُحمّل بعد
   
-  _notifListener = rdb.ref('chat/'+reqId).on('child_added', snap=>{
-    if(isFirstLoad) return;
+  _notifListener = rdb.ref('chat/'+reqId).on('value', snap=>{
+    const msgs = snap.val() || {};
+    const count = Object.keys(msgs).length;
     
-    const msg = snap.val();
-    if(!msg) return;
+    if(_prevCount === -1){
+      // أول تحميل — سجّل العدد فقط
+      _prevCount = count;
+      return;
+    }
     
-    if(msg.role !== role){
-      playAlarm();
-      toast('💬 '+(lang==='ar'?'رسالة جديدة من '+msg.sender:'New message from '+msg.sender),'yay');
+    if(count > _prevCount){
+      // رسائل جديدة — تحقق من آخر رسالة
+      const sorted = Object.values(msgs).sort((a,b)=>a.ts-b.ts);
+      const last = sorted[sorted.length-1];
       
-      if(!$id('chat-modal').classList.contains('on')){
-        openChat(reqId, role, '💬 '+(lang==='ar'?'محادثة':'Chat'), '');
+      if(last && last.role !== role){
+        // رسالة من الطرف الآخر!
+        playAlarm();
+        toast('💬 '+(lang==='ar'?'رسالة جديدة':'New message'),'yay');
+        
+        if(!$id('chat-modal').classList.contains('on')){
+          openChat(reqId, role, '💬 '+(lang==='ar'?'محادثة':'Chat'), '');
+        }
       }
     }
-  });
-  
-  rdb.ref('chat/'+reqId).once('value', ()=>{ 
-    setTimeout(()=>{ isFirstLoad=false; }, 1500); 
+    _prevCount = count;
   });
 }
 
 function stopChatNotifications(){
   if(_notifListener && _notifReqId){
-    rdb.ref('chat/'+_notifReqId).off('child_added', _notifListener);
+    rdb.ref('chat/'+_notifReqId).off('value', _notifListener);
     _notifListener = null;
     _notifReqId = null;
   }
