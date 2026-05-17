@@ -2074,6 +2074,7 @@ function custLogin(){
 }
 
 function startCustNotifs(custId){
+  // مراقبة الإشعارات
   rdb.ref('notifications/'+custId).limitToLast(1).on('value',snap=>{
     const v=snap.val(); if(!v) return;
     const last=Object.values(v).pop();
@@ -2089,6 +2090,12 @@ function startCustNotifs(custId){
     };
     const info=msgs[last.type];
     if(info){ toast(info.toast,'yay'); renderPuStatus({status:info.status,workerName:info.wn||''}); }
+  });
+  
+  // مراقبة طلبات الاستلام — لتفعيل الشات
+  rdb.ref('pickupRequests').orderByChild('customerId').equalTo(custId).on('value',snap=>{
+    const reqs=snap.val()||{};
+    watchMyPickup(reqs);
   });
 }
 
