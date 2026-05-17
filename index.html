@@ -1965,6 +1965,21 @@ const STEP_NOTIFS=['arrived','toStation','washing','done','delivery','delivered'
 
 function renderJobStep(){
   if(!jobActive) return;
+  // مراقبة إلغاء الطلب من الزبون
+  rdb.ref('pickupRequests/'+jobActive.reqId).on('value', snap=>{
+    const req=snap.val();
+    if(!req || req.status==='cancelled'){
+      // الزبون ألغى الطلب!
+      rdb.ref('pickupRequests/'+jobActive.reqId).off();
+      stopChatNotifications();
+      jobActive=null;
+      $id('w-job').style.display='none';
+      $id('w-pu-sec').style.display='block';
+      playAlarm();
+      toast(lang==='ar'?'❌ الزبون ألغى الطلب':'❌ Customer cancelled','er');
+      return;
+    }
+  });
   const s=STEPS[jobActive.step]||STEPS[0];
   setText('wj-ico',s.ico); setText('wj-ttl',t(s.tK));
   // اعرض فقط اللوحة المختارة من الطلب
@@ -2149,8 +2164,12 @@ function requestPickup(){
   selectCarThenPickup();
 }
 
+let _useFreeWashFlag=false; // حفظ الاختيار قبل استبدال HTML
+
 function selectCarThenPickup(){
   if(!navigator.geolocation){ toast(t('no_gps'),'er'); return; }
+  // احفظ اختيار الغسلة المجانية قبل ما يتغير HTML
+  _useFreeWashFlag=$id('c-use-free')?.checked||false;
   const activeCars=(cCustomer.cars||[]).filter(c=>c.active);
   if(activeCars.length>1){
     showCarSelector(activeCars);
@@ -2180,7 +2199,7 @@ async function doPickup(selectedPlate){
       const {latitude,longitude}=pos.coords;
       const reqId='PK'+tsNow();
       const locNote=$id('c-loc-note')?.value.trim()||'';
-      const useFree=$id('c-use-free')?.checked||false;
+      const useFree=_useFreeWashFlag||($id('c-use-free')?.checked||false);
       _custReqId=reqId;
       rdb.ref('pickupRequests/'+reqId).set({
         id:reqId,
@@ -2214,7 +2233,8 @@ async function doPickup(selectedPlate){
 
 function renderPuStatus(req){
   const area=$id('c-pu-area');
-  const cancelBtn=`<button class="btn btn-er btn-w" style="margin-top:11px" onclick="cancelPickup()">${t('cancel_req')}</button>`;
+  const canCancel=['waiting','accepted','arrived'].includes(req.status);
+  const cancelBtn=canCancel?`<button class="btn btn-er btn-w" style="margin-top:11px" onclick="cancelPickup()">${t('cancel_req')}</button>`:'';
   const newReqBtn=`<button class="btn btn-g btn-w" style="margin-top:11px" onclick="resetPickupUI()">${t('new_req')}</button>`;
   // أزرار المحادثة والاتصال — تظهر في كل الحالات النشطة
   const workerPhone = req.workerPhone||'';
@@ -2260,8 +2280,17 @@ function resetPickupUI(){
 
 function cancelPickup(){
   rdb.ref('pickupRequests').orderByChild('customerId').equalTo(cCustomer.id).once('value',snap=>{
-    Object.keys(snap.val()||{}).forEach(k=>{ if((snap.val()[k].status||'')==='waiting') rdb.ref('pickupRequests/'+k).remove(); });
+    const reqs=snap.val()||{};
+    Object.keys(reqs).forEach(k=>{
+      const s=reqs[k].status||'';
+      if(['waiting','accepted','arrived'].includes(s)){
+        rdb.ref('pickupRequests/'+k).update({status:'cancelled'});
+        // حذف بعد 5 ثوان
+        setTimeout(()=>rdb.ref('pickupRequests/'+k).remove(),5000);
+      }
+    });
   });
+  stopChatNotifications();
   resetPickupUI();
   toast(lang==='ar'?'تم إلغاء الطلب':'Request cancelled');
 }
