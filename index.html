@@ -2136,25 +2136,24 @@ function custLogin(){
 }
 
 function startCustNotifs(custId){
-  // مراقبة الإشعارات
+  // مراقبة الإشعارات — فقط toast بدون render
   rdb.ref('notifications/'+custId).limitToLast(1).on('value',snap=>{
     const v=snap.val(); if(!v) return;
     const last=Object.values(v).pop();
     if(!last||tsNow()-last.time>45000) return;
     const msgs={
-      accepted:{toast:lang==='ar'?'🚗 العامل في الطريق!':'🚗 Worker is on the way!',status:'accepted',wn:last.worker},
-      arrived:{toast:t('n_arrived'),status:'arrived'},
-      toStation:{toast:lang==='ar'?'🏎️ السيارة في الطريق للمحطة':'🏎️ Car heading to station',status:'toStation'},
-      washing:{toast:lang==='ar'?'💧 جاري غسل سيارتك':'💧 Washing your car',status:'washing'},
-      done:{toast:lang==='ar'?'✅ تم غسل سيارتك':'✅ Car wash complete',status:'done'},
-      delivery:{toast:lang==='ar'?'🚗 سيارتك في الطريق إليك':'🚗 Car is on the way back',status:'delivery'},
-      delivered:{toast:t('n_del'),status:'delivered'},
+      accepted:lang==='ar'?'🚗 العامل في الطريق!':'🚗 Worker is on the way!',
+      arrived:t('n_arrived'),
+      toStation:lang==='ar'?'🏎️ السيارة في الطريق للمحطة':'🏎️ Car heading to station',
+      washing:lang==='ar'?'💧 جاري غسل سيارتك':'💧 Washing your car',
+      done:lang==='ar'?'✅ تم غسل سيارتك':'✅ Car wash complete',
+      delivery:lang==='ar'?'🚗 سيارتك في الطريق إليك':'🚗 Car is on the way back',
+      delivered:t('n_del'),
     };
-    const info=msgs[last.type];
-    if(info){ toast(info.toast,'yay'); renderPuStatus({status:info.status,workerName:info.wn||''}); }
+    if(msgs[last.type]) toast(msgs[last.type],'yay');
   });
   
-  // مراقبة طلبات الاستلام — لتفعيل الشات
+  // مراقبة طلبات الاستلام — المصدر الوحيد لعرض الحالة + الشات
   rdb.ref('pickupRequests').orderByChild('customerId').equalTo(custId).on('value',snap=>{
     const reqs=snap.val()||{};
     watchMyPickup(reqs);
@@ -2163,17 +2162,26 @@ function startCustNotifs(custId){
 
 function watchMyPickup(reqs){
   if(!cCustomer) return;
-  const mine=Object.values(reqs).find(r=>r.customerId===cCustomer.id&&!['delivered','done','cancelled'].includes(r.status));
+  const all=Object.values(reqs);
+  const mine=all.find(r=>r.customerId===cCustomer.id&&!['delivered','done','cancelled'].includes(r.status));
   if(mine){
     _custReqId=mine.id;
-    // بدء مستمع الشات — لأي حالة بعد waiting
     if(mine.status!=='waiting'){
       startChatNotifications(mine.id, 'customer');
     }
     renderPuStatus(mine);
   } else {
-    // لا يوجد طلب نشط — أوقف مستمع الشات
+    // لا يوجد طلب نشط
     stopChatNotifications();
+    _custReqId='';
+    // تحقق هل كان هناك طلب مكتمل حديثاً
+    const justDone=all.find(r=>r.customerId===cCustomer.id&&['delivered','done'].includes(r.status));
+    if(justDone){
+      resetPickupUI();
+      // حدّث بيانات الزبون
+      const fresh=customers[cCustomer.id];
+      if(fresh){ cCustomer=fresh; renderCustDash(fresh); }
+    }
   }
 }
 
