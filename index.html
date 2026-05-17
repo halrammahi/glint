@@ -2405,7 +2405,8 @@ function showNotifPrompt(){
 // ══════════════════════════════════════════
 //  CHAT SYSTEM
 // ══════════════════════════════════════════
-let _chatReqId=null, _chatRole=null, _chatListener=null, _chatNotifListener=null, _lastChatCount={};
+let _chatReqId=null, _chatRole=null, _chatListener=null;
+let _notifReqId=null, _notifRole=null, _notifListener=null;
 
 function _activeReqId(){
   // احصل على reqId الطلب النشط للزبون
@@ -2417,50 +2418,45 @@ let _custReqId=''; // يُحفظ عند إرسال الطلب
 function startChatNotifications(reqId, role){
   if(!reqId || !rdb) return;
   
-  // إذا نفس الطلب ونفس الدور — لا تعيد التشغيل
-  if(_chatNotifListener && _chatReqId===reqId) return;
+  // إذا نفس الطلب — لا تعيد التشغيل
+  if(_notifListener && _notifReqId===reqId) return;
   
   // أوقف المستمع القديم
-  if(_chatNotifListener && _chatReqId){
-    rdb.ref('chat/'+_chatReqId).off('child_added', _chatNotifListener);
-    _chatNotifListener=null;
+  if(_notifListener && _notifReqId){
+    rdb.ref('chat/'+_notifReqId).off('child_added', _notifListener);
+    _notifListener=null;
   }
   
-  _chatReqId = reqId;
-  _chatRole = role;
+  _notifReqId = reqId;
+  _notifRole = role;
   let isFirstLoad = true;
   
-  // استخدم child_added — ينطلق لكل رسالة جديدة
-  _chatNotifListener = rdb.ref('chat/'+reqId).on('child_added', snap=>{
-    if(isFirstLoad) return; // تجاهل الرسائل القديمة
+  _notifListener = rdb.ref('chat/'+reqId).on('child_added', snap=>{
+    if(isFirstLoad) return;
     
     const msg = snap.val();
     if(!msg) return;
     
-    // تحقق أن الرسالة من الطرف الآخر
     if(msg.role !== role){
-      // رسالة جديدة من الطرف الآخر!
       playAlarm();
       toast('💬 '+(lang==='ar'?'رسالة جديدة من '+msg.sender:'New message from '+msg.sender),'yay');
       
-      // فتح الشات تلقائياً إذا مغلق
       if(!$id('chat-modal').classList.contains('on')){
-        const title = '💬 '+(lang==='ar'?'محادثة':'Chat');
-        openChat(reqId, role, title, '');
+        openChat(reqId, role, '💬 '+(lang==='ar'?'محادثة':'Chat'), '');
       }
     }
   });
   
-  // بعد تحميل الرسائل الحالية، فعّل التنبيهات
   rdb.ref('chat/'+reqId).once('value', ()=>{ 
-    setTimeout(()=>{ isFirstLoad=false; }, 2000); 
+    setTimeout(()=>{ isFirstLoad=false; }, 1500); 
   });
 }
 
 function stopChatNotifications(){
-  if(_chatNotifListener && _chatReqId){
-    rdb.ref('chat/'+_chatReqId).off('child_added', _chatNotifListener);
-    _chatNotifListener = null;
+  if(_notifListener && _notifReqId){
+    rdb.ref('chat/'+_notifReqId).off('child_added', _notifListener);
+    _notifListener = null;
+    _notifReqId = null;
   }
 }
 
